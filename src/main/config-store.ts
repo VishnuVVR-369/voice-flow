@@ -4,6 +4,7 @@ import type { PolishProvider } from '../shared/types';
 
 interface StoreSchema {
   hotkey: string;
+  holdToTranscribeHotkey: string;
   language: string;
   enablePolish: boolean;
   polishProvider: PolishProvider;
@@ -24,6 +25,7 @@ interface StoreSchemaStore<T> {
 const store = new StoreConstructor<StoreSchema>({
   defaults: {
     hotkey: APP_DEFAULTS.hotkey,
+    holdToTranscribeHotkey: APP_DEFAULTS.holdToTranscribeHotkey,
     language: APP_DEFAULTS.language,
     enablePolish: APP_DEFAULTS.enablePolish,
     polishProvider: APP_DEFAULTS.polishProvider,
@@ -32,12 +34,12 @@ const store = new StoreConstructor<StoreSchema>({
   },
 });
 
-store.set('hotkey', APP_DEFAULTS.hotkey);
 store.set('polishProvider', APP_DEFAULTS.polishProvider);
 
 export function getConfig(): StoreSchema {
   return {
     hotkey: store.get('hotkey'),
+    holdToTranscribeHotkey: store.get('holdToTranscribeHotkey'),
     language: store.get('language'),
     enablePolish: store.get('enablePolish'),
     polishProvider: store.get('polishProvider'),

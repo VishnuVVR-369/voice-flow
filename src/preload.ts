@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from './shared/constants';
-import type { ElectronAPI } from './shared/types';
-import type { AppStatus } from './shared/types';
+import type { AppSettings, AppStatus, ElectronAPI } from './shared/types';
 
 const electronAPI: ElectronAPI = {
   onRecordingStart: (callback: () => void) => {
@@ -24,6 +23,11 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.STATUS_UPDATE, handler);
     return () => { ipcRenderer.removeListener(IPC_CHANNELS.STATUS_UPDATE, handler); };
   },
+  onSettingsUpdated: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, settings: AppSettings) => callback(settings);
+    ipcRenderer.on(IPC_CHANNELS.SETTINGS_UPDATED, handler);
+    return () => { ipcRenderer.removeListener(IPC_CHANNELS.SETTINGS_UPDATED, handler); };
+  },
   onTranscriptionResult: (callback: (text: string) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, text: string) => callback(text);
     ipcRenderer.on(IPC_CHANNELS.TRANSCRIPTION_RESULT, handler);
@@ -42,6 +46,12 @@ const electronAPI: ElectronAPI = {
   },
   setSettings: (settings) => {
     ipcRenderer.send(IPC_CHANNELS.SETTINGS_SET, settings);
+  },
+  updateHotkey: (kind: 'toggle' | 'hold', hotkey: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.HOTKEY_SET, { kind, hotkey });
+  },
+  setShortcutEditing: (isEditing: boolean) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.SHORTCUT_EDITING, isEditing);
   },
 
   // Dictionary

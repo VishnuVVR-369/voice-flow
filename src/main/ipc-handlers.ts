@@ -1,5 +1,5 @@
 import { ipcMain, BrowserWindow } from 'electron';
-import { IPC_CHANNELS, OVERLAY_WIDTH } from '../shared/constants';
+import { IPC_CHANNELS } from '../shared/constants';
 import { TranscriptionService } from './transcription-service';
 import { RealtimeTranscriptionService } from './realtime-transcription-service';
 import { TextInjector } from './text-injector';
@@ -9,6 +9,8 @@ import type { AppStatus, CursorContext } from '../shared/types';
 import { historyService, dictionaryService } from './service-ipc';
 import { captureCursorContext } from './context-capture';
 import type { RealtimeSessionManager } from './realtime-session-manager';
+import type { ShortcutManager } from './shortcut-manager';
+import { normalizeHotkeyForStorage, validateHotkeyTokens, hotkeyTokensFromAccelerator } from '../shared/hotkeys';
 
 export class IPCHandler {
   private transcriptionService: TranscriptionService;
@@ -22,6 +24,7 @@ export class IPCHandler {
   private recordingStartedAt: number | null = null;
   private pendingContext: Promise<CursorContext | null> = Promise.resolve(null);
   private sessionManager: RealtimeSessionManager | null = null;
+  private shortcutManager: ShortcutManager | null = null;
 
   constructor(
     transcriptionService: TranscriptionService,
@@ -52,6 +55,10 @@ export class IPCHandler {
     this.sessionManager = manager;
   }
 
+  setShortcutManager(manager: ShortcutManager): void {
+    this.shortcutManager = manager;
+  }
+
   markRecordingStarted(): void {
     this.recordingStartedAt = Date.now();
     this.pendingContext = captureCursorContext();
@@ -72,11 +79,36 @@ export class IPCHandler {
     }
   }
 
+  private validateHotkey(hotkey: string): { normalized?: string; error?: string } {
+    const normalized = normalizeHotkeyForStorage(hotkey);
+    const validationError = validateHotkeyTokens(hotkeyTokensFromAccelerator(normalized));
+    if (validationError) {
+      return { error: validationError };
+    }
+    return { normalized };
+  }
+
+  private validateHotkeyPair(toggleHotkey: string, holdHotkey: string): string | null {
+    if (normalizeHotkeyForStorage(toggleHotkey) === normalizeHotkeyForStorage(holdHotkey)) {
+      return 'The two shortcuts must be different.';
+    }
+    return null;
+  }
+
+  private broadcastSettings(): void {
+    const settings = getConfig();
+    this.overlayWindow?.webContents.send(IPC_CHANNELS.SETTINGS_UPDATED, settings);
+    const mainWindow = this.getMainWindow?.();
+    mainWindow?.webContents.send(IPC_CHANNELS.SETTINGS_UPDATED, settings);
+  }
+
   register(): void {
     // Remove any stale handlers first (prevents duplicates from Vite HMR rebuilds)
     ipcMain.removeAllListeners(IPC_CHANNELS.RECORDING_CANCELLED);
     ipcMain.removeAllListeners(IPC_CHANNELS.SETTINGS_SET);
     ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_GET);
+    ipcMain.removeHandler(IPC_CHANNELS.HOTKEY_SET);
+    ipcMain.removeHandler(IPC_CHANNELS.SHORTCUT_EDITING);
 
     // Handle cancel from renderer (X button clicked)
     ipcMain.on(IPC_CHANNELS.RECORDING_CANCELLED, () => {
@@ -98,8 +130,119 @@ export class IPCHandler {
     });
 
     ipcMain.on(IPC_CHANNELS.SETTINGS_SET, (_event, settings) => {
+      const config = getConfig();
+
+      const requestedToggle = typeof settings?.hotkey === 'string' ? settings.hotkey : config.hotkey;
+      const requestedHold = typeof settings?.holdToTranscribeHotkey === 'string'
+        ? settings.holdToTranscribeHotkey
+        : config.holdToTranscribeHotkey;
+
+      const toggleValidation = this.validateHotkey(requestedToggle);
+      const holdValidation = this.validateHotkey(requestedHold);
+      const pairValidation = this.validateHotkeyPair(requestedToggle, requestedHold);
+
+      if (
+        !toggleValidation.error
+        && !holdValidation.error
+        && !pairValidation
+        && toggleValidation.normalized
+        && holdValidation.normalized
+      ) {
+        const hotkeyUpdate = {
+          toggleHotkey: toggleValidation.normalized,
+          holdToTranscribeHotkey: holdValidation.normalized,
+        };
+        const changed = hotkeyUpdate.toggleHotkey !== config.hotkey
+          || hotkeyUpdate.holdToTranscribeHotkey !== config.holdToTranscribeHotkey;
+
+        if (changed) {
+          if (this.shortcutManager?.updateHotkeys(hotkeyUpdate)) {
+            settings.hotkey = hotkeyUpdate.toggleHotkey;
+            settings.holdToTranscribeHotkey = hotkeyUpdate.holdToTranscribeHotkey;
+          } else {
+            delete settings.hotkey;
+            delete settings.holdToTranscribeHotkey;
+          }
+        }
+      } else {
+        delete settings.hotkey;
+        delete settings.holdToTranscribeHotkey;
+      }
+
       setConfig(settings);
-      this.overlayWindow?.webContents.send(IPC_CHANNELS.SETTINGS_UPDATED, getConfig());
+      this.broadcastSettings();
+    });
+
+    ipcMain.handle(
+      IPC_CHANNELS.HOTKEY_SET,
+      async (
+        _event,
+        payload: { kind: 'toggle' | 'hold'; hotkey: string } | string,
+      ) => {
+        const request = typeof payload === 'string'
+          ? { kind: 'toggle' as const, hotkey: payload }
+          : payload;
+
+        if (!request?.hotkey || (request.kind !== 'toggle' && request.kind !== 'hold')) {
+          return { success: false, error: 'Invalid shortcut payload.' };
+        }
+
+        const config = getConfig();
+        const nextToggle = request.kind === 'toggle' ? request.hotkey : config.hotkey;
+        const nextHold = request.kind === 'hold' ? request.hotkey : config.holdToTranscribeHotkey;
+
+        const toggleValidation = this.validateHotkey(nextToggle);
+        if (toggleValidation.error) {
+          return { success: false, error: toggleValidation.error };
+        }
+        const holdValidation = this.validateHotkey(nextHold);
+        if (holdValidation.error) {
+          return { success: false, error: holdValidation.error };
+        }
+
+        const pairValidation = this.validateHotkeyPair(nextToggle, nextHold);
+        if (pairValidation) {
+          return { success: false, error: pairValidation };
+        }
+
+        if (!this.shortcutManager) {
+          return { success: false, error: 'Shortcut manager is not ready yet.' };
+        }
+
+        if (!toggleValidation.normalized || !holdValidation.normalized) {
+          return { success: false, error: 'Shortcut validation failed.' };
+        }
+
+        const updatePayload = {
+          toggleHotkey: toggleValidation.normalized,
+          holdToTranscribeHotkey: holdValidation.normalized,
+        };
+
+        const ok = this.shortcutManager.updateHotkeys(updatePayload);
+        if (!ok) {
+          return { success: false, error: 'That shortcut is unavailable right now.' };
+        }
+
+        setConfig({
+          hotkey: updatePayload.toggleHotkey,
+          holdToTranscribeHotkey: updatePayload.holdToTranscribeHotkey,
+        });
+        this.broadcastSettings();
+        return { success: true, settings: getConfig() };
+      }
+    );
+
+    ipcMain.handle(IPC_CHANNELS.SHORTCUT_EDITING, async (_event, isEditing: boolean) => {
+      if (!this.shortcutManager) {
+        return { success: false, error: 'Shortcut manager is not ready yet.' };
+      }
+
+      const ok = this.shortcutManager.setEnabled(!isEditing);
+      if (!ok) {
+        return { success: false, error: 'Failed to restore the global shortcut.' };
+      }
+
+      return { success: true };
     });
 
     // --- Realtime streaming transcription ---

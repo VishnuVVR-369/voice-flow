@@ -20,6 +20,7 @@ export const useAppStore = create<AppState>((set) => ({
   error: null,
   settings: {
     hotkey: APP_DEFAULTS.hotkey,
+    holdToTranscribeHotkey: APP_DEFAULTS.holdToTranscribeHotkey,
     language: APP_DEFAULTS.language,
     enablePolish: APP_DEFAULTS.enablePolish,
     polishProvider: APP_DEFAULTS.polishProvider,

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import HotkeyEditor from '../components/HotkeyEditor';
 
 interface AudioDevice {
   deviceId: string;
@@ -11,6 +12,8 @@ const SettingsPage: React.FC = () => {
   const [enablePolish, setEnablePolish] = useState(true);
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [toggleHotkey, setToggleHotkey] = useState('`');
+  const [holdHotkey, setHoldHotkey] = useState('Shift+Space');
 
   const refreshDevices = async () => {
     try {
@@ -28,12 +31,31 @@ const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    window.electronAPI.getSettings().then((settings) => {
+    const api = window.electronAPI;
+
+    api.getSettings().then((settings) => {
+      setToggleHotkey(settings.hotkey);
+      setHoldHotkey(settings.holdToTranscribeHotkey);
       setSelectedDeviceId(settings.audioInputDeviceId);
       setEnablePolish(settings.enablePolish);
       setApiKey(settings.groqApiKey || '');
     });
     refreshDevices();
+  }, []);
+
+  useEffect(() => {
+    const api = window.electronAPI;
+    if (typeof api.onSettingsUpdated !== 'function') {
+      return undefined;
+    }
+
+    return api.onSettingsUpdated((settings) => {
+      setToggleHotkey(settings.hotkey);
+      setHoldHotkey(settings.holdToTranscribeHotkey);
+      setSelectedDeviceId(settings.audioInputDeviceId);
+      setEnablePolish(settings.enablePolish);
+      setApiKey(settings.groqApiKey || '');
+    });
   }, []);
 
   useEffect(() => {
@@ -59,6 +81,24 @@ const SettingsPage: React.FC = () => {
     const value = e.target.value;
     setApiKey(value);
     window.electronAPI.setSettings({ groqApiKey: value });
+  };
+
+  const handleToggleHotkeyChange = async (value: string) => {
+    const result = await window.electronAPI.updateHotkey('toggle', value);
+    if (result.success && result.settings) {
+      setToggleHotkey(result.settings.hotkey);
+      setHoldHotkey(result.settings.holdToTranscribeHotkey);
+    }
+    return result;
+  };
+
+  const handleHoldHotkeyChange = async (value: string) => {
+    const result = await window.electronAPI.updateHotkey('hold', value);
+    if (result.success && result.settings) {
+      setToggleHotkey(result.settings.hotkey);
+      setHoldHotkey(result.settings.holdToTranscribeHotkey);
+    }
+    return result;
   };
 
   return (
@@ -92,6 +132,24 @@ const SettingsPage: React.FC = () => {
           onChange={handleApiKeyChange}
           placeholder="gsk_..."
           className="settings-input"
+        />
+      </section>
+
+      <section className="settings-block">
+        <HotkeyEditor
+          value={toggleHotkey}
+          onChange={handleToggleHotkeyChange}
+          title="Shortcut 1: Toggle Record / Transcribe"
+          description="Press and release once to start recording. Press the same shortcut again to stop and transcribe."
+        />
+      </section>
+
+      <section className="settings-block">
+        <HotkeyEditor
+          value={holdHotkey}
+          onChange={handleHoldHotkeyChange}
+          title="Shortcut 2: Hold to Record"
+          description="Press and hold to record immediately. Releasing the shortcut stops recording and starts transcription."
         />
       </section>
 

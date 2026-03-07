@@ -11,6 +11,7 @@ export interface CursorContext {
 
 export interface AppSettings {
   hotkey: string;
+  holdToTranscribeHotkey: string;
   language: string;
   enablePolish: boolean; // Enable AI polish after transcription
   polishProvider: PolishProvider; // Which provider to use for polish
@@ -64,11 +65,17 @@ export interface ElectronAPI {
   onRecordingStop: (callback: () => void) => Disposer;
   onRecordingCancel: (callback: () => void) => Disposer;
   onStatusUpdate: (callback: (status: AppStatus) => void) => Disposer;
+  onSettingsUpdated: (callback: (settings: AppSettings) => void) => Disposer;
   onTranscriptionResult: (callback: (text: string) => void) => Disposer;
   onTranscriptionError: (callback: (error: string) => void) => Disposer;
   cancelRecording: () => void;
   getSettings: () => Promise<AppSettings>;
   setSettings: (settings: Partial<AppSettings>) => void;
+  updateHotkey: (
+    kind: 'toggle' | 'hold',
+    hotkey: string,
+  ) => Promise<{ success: boolean; error?: string; settings?: AppSettings }>;
+  setShortcutEditing: (isEditing: boolean) => Promise<{ success: boolean; error?: string }>;
 
   // Realtime streaming transcription
   realtimeStart: () => Promise<{ success: boolean; error?: string }>;

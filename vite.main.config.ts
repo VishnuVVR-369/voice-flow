@@ -5,18 +5,16 @@ const externalIds = new Set([
   'electron',
   'electron/main',
   'electron/common',
+  'node-global-key-listener',
   ...builtinModules,
   ...builtinModules.map((moduleName) => `node:${moduleName}`),
 ]);
 
 function isExternalDependency(id: string): boolean {
-  return externalIds.has(id);
+  return externalIds.has(id) || id.startsWith('node-global-key-listener/');
 }
 
 export default defineConfig({
-  ssr: {
-    noExternal: true,
-  },
   build: {
     ssr: true,
     rollupOptions: {

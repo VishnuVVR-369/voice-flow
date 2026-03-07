@@ -8,9 +8,9 @@ let mainWindow: BrowserWindow | null = null;
 
 export function createMainWindow(): BrowserWindow {
   mainWindow = new BrowserWindow({
-    width: 1080,
+    width: 1200,
     height: 720,
-    minWidth: 800,
+    minWidth: 1000,
     minHeight: 600,
     show: false,
     titleBarStyle: 'hiddenInset',

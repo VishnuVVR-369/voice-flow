@@ -6,10 +6,12 @@ import { TrayManager } from './main/tray-manager';
 import { IPCHandler } from './main/ipc-handlers';
 import { createOverlayWindow, repositionOverlayTocursor } from './main/overlay-window';
 import { toggleMainWindow, getMainWindow } from './main/main-window';
-import { getConfig } from './main/config-store';
+import { getConfig, setConfig } from './main/config-store';
 import { IPC_CHANNELS } from './shared/constants';
 import { registerServiceIPC } from './main/service-ipc';
 import { RealtimeSessionManager } from './main/realtime-session-manager';
+import { APP_DEFAULTS } from './shared/app-defaults';
+import { normalizeHotkeyForStorage } from './shared/hotkeys';
 
 let overlayWindow: BrowserWindow | null = null;
 let shortcutManager: ShortcutManager | null = null;
@@ -23,9 +25,17 @@ ipcHandler.setSessionManager(sessionManager);
 
 function initApp(): void {
   const config = getConfig();
+  if (normalizeHotkeyForStorage(config.hotkey) === normalizeHotkeyForStorage(config.holdToTranscribeHotkey)) {
+    const fallbackHoldHotkey = normalizeHotkeyForStorage(APP_DEFAULTS.holdToTranscribeHotkey);
+    const fallbackToggleHotkey = normalizeHotkeyForStorage(config.hotkey);
+    const nextHold = fallbackHoldHotkey === fallbackToggleHotkey ? 'Control+Space' : fallbackHoldHotkey;
+    setConfig({ holdToTranscribeHotkey: nextHold });
+    config.holdToTranscribeHotkey = nextHold;
+  }
 
   console.log('=== VoiceFlow Initializing ===');
-  console.log('Hotkey:', config.hotkey);
+  console.log('Toggle Hotkey:', config.hotkey);
+  console.log('Hold-to-Transcribe Hotkey:', config.holdToTranscribeHotkey);
   console.log('Language:', config.language);
 
   overlayWindow = createOverlayWindow();
@@ -49,7 +59,7 @@ function initApp(): void {
 
   sessionManager.warmUp();
 
-  shortcutManager = new ShortcutManager(config.hotkey, (recording) => {
+  shortcutManager = new ShortcutManager(config.hotkey, config.holdToTranscribeHotkey, (recording) => {
     if (recording) {
       ipcHandler.markRecordingStarted();
       if (overlayWindow) {
@@ -72,6 +82,7 @@ function initApp(): void {
     }
   });
   shortcutManager.setOverlayWindow(overlayWindow);
+  ipcHandler.setShortcutManager(shortcutManager);
   shortcutManager.register();
 
   toggleMainWindow();
@@ -103,7 +114,7 @@ function initApp(): void {
     }
   }
 
-  console.log('VoiceFlow initialized. Press ` to start/stop recording.');
+  console.log('VoiceFlow initialized. Use configured shortcuts to control recording.');
 }
 
 process.on('uncaughtException', (error) => {

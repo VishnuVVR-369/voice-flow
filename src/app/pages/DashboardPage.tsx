@@ -17,6 +17,8 @@ function formatWordCount(count: number): string {
 
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({ totalWords: 0, totalCount: 0, totalDurationSeconds: 0 });
+  const [toggleHotkey, setToggleHotkey] = useState('`');
+  const [holdHotkey, setHoldHotkey] = useState('Shift+Space');
 
   useEffect(() => {
     const fetchStats = () => {
@@ -27,6 +29,21 @@ const DashboardPage: React.FC = () => {
     fetchStats();
     const dispose = window.electronAPI.onHistoryUpdated(fetchStats);
     return dispose;
+  }, []);
+
+  useEffect(() => {
+    const api = window.electronAPI;
+    api.getSettings().then((settings) => {
+      setToggleHotkey(settings.hotkey);
+      setHoldHotkey(settings.holdToTranscribeHotkey);
+    });
+    if (typeof api.onSettingsUpdated !== 'function') {
+      return undefined;
+    }
+    return api.onSettingsUpdated((settings) => {
+      setToggleHotkey(settings.hotkey);
+      setHoldHotkey(settings.holdToTranscribeHotkey);
+    });
   }, []);
 
   return (
@@ -41,9 +58,16 @@ const DashboardPage: React.FC = () => {
               Keep custom vocabulary close, review prior entries, and move from idea to output faster.
             </p>
             <div className="hero-badges">
-              <span className="badge-soft">Trigger</span>
-              <span className="badge-key">`</span>
-              <span className="badge-note">single press to start and stop</span>
+              <div className="badge-row">
+                <span className="badge-soft">Toggle</span>
+                <span className="badge-key">{toggleHotkey}</span>
+                <span className="badge-note">press once to start, again to transcribe</span>
+              </div>
+              <div className="badge-row">
+                <span className="badge-soft">Hold</span>
+                <span className="badge-key">{holdHotkey}</span>
+                <span className="badge-note">press and hold, release to transcribe</span>
+              </div>
             </div>
           </div>
 

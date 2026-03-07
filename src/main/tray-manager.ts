@@ -28,7 +28,7 @@ export class TrayManager {
     const contextMenu = Menu.buildFromTemplate([
       { label: `VoiceFlow - ${statusText}`, enabled: false },
       { type: 'separator' },
-      { label: 'Press ` to start/stop recording', enabled: false },
+      { label: 'Use configured shortcuts from Settings', enabled: false },
       { type: 'separator' },
       { label: 'Open VoiceFlow', click: () => this.onOpenMainWindow() },
       { type: 'separator' },

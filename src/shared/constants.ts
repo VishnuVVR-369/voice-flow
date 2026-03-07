@@ -16,6 +16,8 @@ export const IPC_CHANNELS = {
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   SETTINGS_UPDATED: 'settings:updated',
+  HOTKEY_SET: 'hotkey:set',
+  SHORTCUT_EDITING: 'shortcut:editing',
 
   // History (renderer -> main, invoke)
   HISTORY_LIST: 'history:list',
