@@ -4,7 +4,7 @@ import { TranscriptionService } from './transcription-service';
 import { RealtimeTranscriptionService } from './realtime-transcription-service';
 import { TextInjector } from './text-injector';
 import { getConfig, setConfig } from './config-store';
-import { resizeOverlay } from './overlay-window';
+import { resizeOverlay, showOverlayWindow } from './overlay-window';
 import type { AppStatus, CursorContext } from '../shared/types';
 import { historyService, dictionaryService } from './service-ipc';
 import { captureCursorContext } from './context-capture';
@@ -71,7 +71,7 @@ export class IPCHandler {
     if (!this.overlayWindow) return;
 
     if (status === 'recording') {
-      this.overlayWindow.show();
+      showOverlayWindow(this.overlayWindow);
       this.overlayWindow.moveTop();
       this.overlayWindow.setIgnoreMouseEvents(false);
     } else {
@@ -402,7 +402,7 @@ export class IPCHandler {
 
         // Inject text + save to history
         const injectStart = Date.now();
-        await this.textInjector.inject(finalText);
+        await this.textInjector.inject(finalText, context);
         const injectMs = Date.now() - injectStart;
 
         const durationSeconds = this.recordingStartedAt

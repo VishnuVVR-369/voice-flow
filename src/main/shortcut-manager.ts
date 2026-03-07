@@ -6,7 +6,12 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { IPC_CHANNELS } from '../shared/constants';
 import { APP_DEFAULTS } from '../shared/app-defaults';
-import { hotkeyTokensFromGlobalDownMap, isHotkeyPressed } from '../shared/hotkeys';
+import {
+  hotkeyTokenFromGlobalKeyName,
+  hotkeyTokensFromAccelerator,
+  hotkeyTokensFromGlobalDownMap,
+  isHotkeyPressed,
+} from '../shared/hotkeys';
 
 const TOGGLE_DEBOUNCE_MS = 250;
 
@@ -46,6 +51,7 @@ export class ShortcutManager {
   private onToggle: (recording: boolean) => void;
   private lastToggleTime = 0;
   private isEnabled = true;
+  private toggleShortcutActive = false;
   private holdShortcutActive = false;
   private keyListener: GlobalKeyboardListener | null = null;
   private keyListenerHandler: IGlobalKeyListener | null = null;
@@ -95,24 +101,48 @@ export class ShortcutManager {
     this.startRecording('toggle');
   }
 
-  private evaluateHoldShortcut(isDown: IGlobalKeyDownMap): void {
+  private isShortcutEvent(hotkey: string, event: IGlobalKeyEvent): boolean {
+    const eventToken = hotkeyTokenFromGlobalKeyName(event.name);
+    if (!eventToken) {
+      return false;
+    }
+
+    return hotkeyTokensFromAccelerator(hotkey).includes(eventToken);
+  }
+
+  private evaluateToggleShortcut(event: IGlobalKeyEvent, isDown: IGlobalKeyDownMap): boolean {
+    const pressedTokens = hotkeyTokensFromGlobalDownMap(isDown as Record<string, boolean>);
+    const togglePressed = isHotkeyPressed(this.toggleHotkey, pressedTokens);
+    const wasActive = this.toggleShortcutActive;
+
+    if (togglePressed && !wasActive && event.state === 'DOWN') {
+      this.toggleShortcutActive = true;
+      this.handleToggleShortcut();
+    } else if (!togglePressed && wasActive) {
+      this.toggleShortcutActive = false;
+    }
+
+    return togglePressed || (wasActive && this.isShortcutEvent(this.toggleHotkey, event));
+  }
+
+  private evaluateHoldShortcut(event: IGlobalKeyEvent, isDown: IGlobalKeyDownMap): boolean {
     const pressedTokens = hotkeyTokensFromGlobalDownMap(isDown as Record<string, boolean>);
     const holdPressed = isHotkeyPressed(this.holdToTranscribeHotkey, pressedTokens);
+    const wasActive = this.holdShortcutActive;
 
-    if (holdPressed && !this.holdShortcutActive) {
+    if (holdPressed && !wasActive) {
       this.holdShortcutActive = true;
       if (!this.isRecording) {
         this.startRecording('hold');
       }
-      return;
-    }
-
-    if (!holdPressed && this.holdShortcutActive) {
+    } else if (!holdPressed && wasActive) {
       this.holdShortcutActive = false;
       if (this.isRecording && this.recordingSource === 'hold') {
         this.stopRecording();
       }
     }
+
+    return holdPressed || (wasActive && this.isShortcutEvent(this.holdToTranscribeHotkey, event));
   }
 
   private resolveMacKeyServerPath(): string | null {
@@ -173,8 +203,15 @@ export class ShortcutManager {
       if (event.state !== 'DOWN' && event.state !== 'UP') {
         return false;
       }
-      this.evaluateHoldShortcut(isDown);
-      return false;
+
+      let shouldCapture = false;
+
+      if (process.platform === 'darwin') {
+        shouldCapture = this.evaluateToggleShortcut(event, isDown) || shouldCapture;
+      }
+
+      shouldCapture = this.evaluateHoldShortcut(event, isDown) || shouldCapture;
+      return shouldCapture;
     };
 
     void this.keyListener.addListener(this.keyListenerHandler).catch((error) => {
@@ -184,6 +221,7 @@ export class ShortcutManager {
 
   private detachGlobalKeyListener(): void {
     if (!this.keyListener) {
+      this.toggleShortcutActive = false;
       this.holdShortcutActive = false;
       return;
     }
@@ -195,13 +233,16 @@ export class ShortcutManager {
 
     this.keyListener.kill();
     this.keyListener = null;
+    this.toggleShortcutActive = false;
     this.holdShortcutActive = false;
   }
 
   private registerToggleHotkey(hotkey: string): boolean {
     globalShortcut.unregister(hotkey);
     const ok = globalShortcut.register(hotkey, () => {
-      this.handleToggleShortcut();
+      if (process.platform !== 'darwin') {
+        this.handleToggleShortcut();
+      }
     });
     if (!ok) {
       console.error(`Failed to register global toggle shortcut: ${hotkey}`);
@@ -294,6 +335,7 @@ export class ShortcutManager {
   resetState(): void {
     this.isRecording = false;
     this.recordingSource = null;
+    this.toggleShortcutActive = false;
     this.holdShortcutActive = false;
   }
 
