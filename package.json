@@ -9,7 +9,9 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "eval:stt:doctor": "node scripts/eval-stt-doctor.mjs",
+    "eval:stt": "node scripts/eval-stt.mjs"
   },
   "keywords": [],
   "license": "MIT",

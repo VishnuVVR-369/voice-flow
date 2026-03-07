@@ -14,6 +14,7 @@ const SettingsPage: React.FC = () => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [toggleHotkey, setToggleHotkey] = useState('`');
   const [holdHotkey, setHoldHotkey] = useState('Shift+Space');
+  const [transcriptionLanguage, setTranscriptionLanguage] = useState('en');
 
   const refreshDevices = async () => {
     try {
@@ -39,6 +40,7 @@ const SettingsPage: React.FC = () => {
       setSelectedDeviceId(settings.audioInputDeviceId);
       setEnablePolish(settings.enablePolish);
       setApiKey(settings.groqApiKey || '');
+      setTranscriptionLanguage(settings.language === '' ? '' : (settings.language || 'en'));
     });
     refreshDevices();
   }, []);
@@ -55,6 +57,7 @@ const SettingsPage: React.FC = () => {
       setSelectedDeviceId(settings.audioInputDeviceId);
       setEnablePolish(settings.enablePolish);
       setApiKey(settings.groqApiKey || '');
+      setTranscriptionLanguage(settings.language === '' ? '' : (settings.language || 'en'));
     });
   }, []);
 
@@ -75,6 +78,12 @@ const SettingsPage: React.FC = () => {
     const next = !enablePolish;
     setEnablePolish(next);
     window.electronAPI.setSettings({ enablePolish: next });
+  };
+
+  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setTranscriptionLanguage(value);
+    window.electronAPI.setSettings({ language: value });
   };
 
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,6 +174,17 @@ const SettingsPage: React.FC = () => {
               {d.label}
             </option>
           ))}
+        </select>
+      </section>
+
+      <section className="settings-block">
+        <div className="settings-head">
+          <h2 className="settings-title">Transcription Language</h2>
+          <p className="settings-copy">English is more accurate for technical dictation. Use Auto Detect for mixed languages.</p>
+        </div>
+        <select value={transcriptionLanguage} onChange={handleLanguageChange} className="settings-select">
+          <option value="en">English (Recommended)</option>
+          <option value="">Auto Detect</option>
         </select>
       </section>
 

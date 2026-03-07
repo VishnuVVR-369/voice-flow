@@ -6,11 +6,14 @@ interface StoreSchema {
   hotkey: string;
   holdToTranscribeHotkey: string;
   language: string;
+  languageDefaultMigrated: boolean;
   enablePolish: boolean;
   polishProvider: PolishProvider;
   audioInputDeviceId: string;
   groqApiKey: string;
 }
+
+type AppConfig = Omit<StoreSchema, 'languageDefaultMigrated'>;
 
 const StoreConstructor = ('default' in electronStore ? electronStore.default : electronStore) as {
   new <T>(options: { defaults: StoreSchema }): StoreSchemaStore<T>;
@@ -27,6 +30,7 @@ const store = new StoreConstructor<StoreSchema>({
     hotkey: APP_DEFAULTS.hotkey,
     holdToTranscribeHotkey: APP_DEFAULTS.holdToTranscribeHotkey,
     language: APP_DEFAULTS.language,
+    languageDefaultMigrated: false,
     enablePolish: APP_DEFAULTS.enablePolish,
     polishProvider: APP_DEFAULTS.polishProvider,
     audioInputDeviceId: APP_DEFAULTS.audioInputDeviceId,
@@ -35,8 +39,14 @@ const store = new StoreConstructor<StoreSchema>({
 });
 
 store.set('polishProvider', APP_DEFAULTS.polishProvider);
+if (!store.get('languageDefaultMigrated')) {
+  if (!store.get('language')) {
+    store.set('language', 'en');
+  }
+  store.set('languageDefaultMigrated', true);
+}
 
-export function getConfig(): StoreSchema {
+export function getConfig(): AppConfig {
   return {
     hotkey: store.get('hotkey'),
     holdToTranscribeHotkey: store.get('holdToTranscribeHotkey'),
@@ -48,9 +58,12 @@ export function getConfig(): StoreSchema {
   };
 }
 
-export function setConfig(partial: Partial<StoreSchema>): void {
-  for (const [key, value] of Object.entries(partial)) {
-    store.set(key as keyof StoreSchema, value as any);
+export function setConfig(partial: Partial<AppConfig>): void {
+  for (const key of Object.keys(partial) as Array<keyof AppConfig>) {
+    const value = partial[key];
+    if (value !== undefined) {
+      store.set(key, value);
+    }
   }
 }
 

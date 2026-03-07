@@ -16,6 +16,7 @@ VoiceFlow is a macOS Electron tray app for fast voice-to-text capture. It record
 - Lets users configure:
   - Groq API key
   - microphone source
+  - transcription language (`English` or `Auto Detect`)
   - toggle shortcut
   - hold-to-record shortcut
   - AI polish on/off
@@ -117,6 +118,15 @@ Lint the codebase:
 npm run lint
 ```
 
+Run local STT A/B evaluation (user-provided clips + references):
+
+```bash
+npm run eval:stt:doctor -- --data eval-data --strict
+GROQ_API_KEY=your_key npm run eval:stt -- --data /path/to/eval-set
+```
+
+Dataset format reference: `eval-data/README.md`.
+
 Create packaged output:
 
 ```bash
@@ -144,7 +154,6 @@ npm run make
 ## Notes And Limitations
 
 - Despite the `realtime` naming in several files and IPC channels, the current implementation buffers audio locally and submits one transcription request when recording ends.
-- The language setting exists in config and is passed to Groq if set, but there is no language picker in the current UI.
 - History browsing is implemented, but delete/export controls are minimal in the current renderer.
 - There are no automated tests in this repository at the moment.
 

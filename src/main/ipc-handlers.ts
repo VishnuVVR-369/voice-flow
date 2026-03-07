@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants';
 import { TranscriptionService } from './transcription-service';
-import { RealtimeTranscriptionService } from './realtime-transcription-service';
+import { RealtimeTranscriptionService, type RealtimeTranscriptionResult } from './realtime-transcription-service';
 import { TextInjector } from './text-injector';
 import { getConfig, setConfig } from './config-store';
 import { resizeOverlay, showOverlayWindow } from './overlay-window';
@@ -291,9 +291,7 @@ export class IPCHandler {
         // Wire up event listeners
         this.realtimeService.on('utterance', (text: string) => {
           if (dictionaryWords?.length && this.isDictionaryHallucination(text, dictionaryWords)) {
-            console.warn(`[IPC] Filtered hallucinated utterance: "${text}"`);
-            this.realtimeService?.popLastTranscript();
-            return;
+            console.warn(`[IPC] Utterance is dictionary-heavy, keeping transcript: "${text}"`);
           }
           this.overlayWindow?.webContents.send(IPC_CHANNELS.REALTIME_UTTERANCE, text);
         });
@@ -349,7 +347,8 @@ export class IPCHandler {
 
       try {
         // Wait for final transcript
-        const rawText = await this.realtimeService.stop();
+        const transcriptResult: RealtimeTranscriptionResult = await this.realtimeService.stop();
+        const rawText = transcriptResult.text;
         const flushMs = Date.now() - stopInitiatedAt;
         this.realtimeService.disconnect();
         this.realtimeService = null;
@@ -369,16 +368,19 @@ export class IPCHandler {
         const dictionaryWords = dictionaryService.getAllWords();
         const context = await this.pendingContext;
 
-        // Dictionary hallucination check
         if (dictionaryWords?.length && this.isDictionaryHallucination(rawText, dictionaryWords)) {
-          console.warn(`[IPC] Detected dictionary hallucination: "${rawText}"`);
-          this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_ERROR, 'No speech detected');
-          this.sendStatus('error');
-          setTimeout(() => {
-            this.overlayWindow?.hide();
-            this.sendStatus('idle');
-          }, 2000);
-          return;
+          console.warn(`[IPC] Final transcript is dictionary-heavy, but accepted: "${rawText}"`);
+        }
+
+        if (transcriptResult.diagnostics) {
+          console.log(`[IPC] STT diagnostics: ${JSON.stringify({
+            strategyVersion: transcriptResult.diagnostics.strategyVersion,
+            selectedPass: transcriptResult.diagnostics.selectedPass,
+            passA: transcriptResult.diagnostics.passA,
+            passB: transcriptResult.diagnostics.passB,
+            detectedLanguage: transcriptResult.detectedLanguage || null,
+            durationSec: transcriptResult.durationSec ?? null,
+          })}`);
         }
 
         // Polish the final text
