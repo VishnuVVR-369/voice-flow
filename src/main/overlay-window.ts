@@ -39,6 +39,15 @@ export function resizeOverlay(overlay: BrowserWindow, width: number, height: num
   overlay.setBounds({ x, y, width, height });
 }
 
+export function showOverlayWindow(overlay: BrowserWindow): void {
+  if (typeof overlay.showInactive === 'function') {
+    overlay.showInactive();
+    return;
+  }
+
+  overlay.show();
+}
+
 export function createOverlayWindow(): BrowserWindow {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { x: areaX, y: areaY, width: areaW, height: areaH } = primaryDisplay.workArea;

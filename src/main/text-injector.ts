@@ -1,8 +1,11 @@
 import { clipboard } from 'electron';
 import { execFile } from 'node:child_process';
+import type { CursorContext } from '../shared/types';
 
 const MIN_INJECT_INTERVAL_MS = 500;
 const DEDUP_WINDOW_MS = 5000;
+const APP_RESTORE_SETTLE_MS = 120;
+const PASTE_DELAY_MS = 50;
 
 export class TextInjector {
   private lastInjectTime = 0;
@@ -10,7 +13,7 @@ export class TextInjector {
   private lastInjectedText = '';
   private lastInjectedAt = 0;
 
-  async inject(text: string): Promise<void> {
+  async inject(text: string, context: CursorContext | null = null): Promise<void> {
     const now = Date.now();
 
     // Guard 1: concurrent / rapid-fire
@@ -35,6 +38,7 @@ export class TextInjector {
     clipboard.writeText(text);
 
     try {
+      await this.restoreTargetApp(context);
       await this.simulatePaste();
       this.lastInjectedText = text;
       this.lastInjectedAt = Date.now();
@@ -49,6 +53,25 @@ export class TextInjector {
     } finally {
       this.isInjecting = false;
     }
+  }
+
+  private restoreTargetApp(context: CursorContext | null): Promise<void> {
+    if (process.platform !== 'darwin' || !context?.appName) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      const script = `Application(${JSON.stringify(context.appName)}).activate();`;
+      execFile('osascript', ['-l', 'JavaScript', '-e', script], (error) => {
+        if (error) {
+          console.warn(`[TextInjector] Failed to reactivate ${context.appName}:`, error.message);
+          resolve();
+          return;
+        }
+
+        setTimeout(resolve, APP_RESTORE_SETTLE_MS);
+      });
+    });
   }
 
   private simulatePaste(): Promise<void> {
@@ -67,7 +90,7 @@ export class TextInjector {
               }
             }
           );
-        }, 50);
+        }, PASTE_DELAY_MS);
       } else {
         resolve();
       }

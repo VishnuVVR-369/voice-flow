@@ -4,7 +4,7 @@ import { TranscriptionService } from './main/transcription-service';
 import { TextInjector } from './main/text-injector';
 import { TrayManager } from './main/tray-manager';
 import { IPCHandler } from './main/ipc-handlers';
-import { createOverlayWindow, repositionOverlayTocursor } from './main/overlay-window';
+import { createOverlayWindow, repositionOverlayTocursor, showOverlayWindow } from './main/overlay-window';
 import { toggleMainWindow, getMainWindow } from './main/main-window';
 import { getConfig, setConfig } from './main/config-store';
 import { IPC_CHANNELS } from './shared/constants';
@@ -65,7 +65,7 @@ function initApp(): void {
       if (overlayWindow) {
         repositionOverlayTocursor(overlayWindow);
         overlayWindow.setIgnoreMouseEvents(false);
-        overlayWindow.show();
+        showOverlayWindow(overlayWindow);
         overlayWindow.moveTop();
       }
 
