@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron';
 import path from 'node:path';
+import { getAssetPath } from './assets-path';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -16,6 +17,7 @@ export function createMainWindow(): BrowserWindow {
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 20, y: 18 },
     backgroundColor: '#081027',
+    icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

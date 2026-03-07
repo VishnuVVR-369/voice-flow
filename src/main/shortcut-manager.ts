@@ -122,7 +122,18 @@ export class ShortcutManager {
 
     try {
       const packageJsonPath = require.resolve('node-global-key-listener/package.json');
-      return path.join(path.dirname(packageJsonPath), 'bin', 'MacKeyServer');
+      const packageDir = path.dirname(packageJsonPath);
+      const asarPathToken = `${path.sep}app.asar${path.sep}`;
+      const unpackedPackageDir = packageDir.includes(asarPathToken)
+        ? packageDir.replace(asarPathToken, `${path.sep}app.asar.unpacked${path.sep}`)
+        : packageDir;
+
+      const unpackedServerPath = path.join(unpackedPackageDir, 'bin', 'MacKeyServer');
+      if (fs.existsSync(unpackedServerPath)) {
+        return unpackedServerPath;
+      }
+
+      return path.join(packageDir, 'bin', 'MacKeyServer');
     } catch {
       return null;
     }

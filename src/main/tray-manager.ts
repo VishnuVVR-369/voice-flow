@@ -1,6 +1,6 @@
-import { Tray, Menu, nativeImage, app } from 'electron';
+import { Tray, Menu, nativeImage } from 'electron';
 import type { NativeImage } from 'electron';
-import path from 'node:path';
+import { getAssetPath } from './assets-path';
 
 export class TrayManager {
   private tray: Tray | null = null;
@@ -43,10 +43,7 @@ export class TrayManager {
 
   private createTrayIcon(): NativeImage {
     // nativeImage.createFromDataURL does NOT support SVG — use PNG files
-    const assetsDir = app.isPackaged
-      ? path.join(process.resourcesPath, 'assets')
-      : path.join(app.getAppPath(), 'assets');
-    const img = nativeImage.createFromPath(path.join(assetsDir, 'trayTemplate.png'));
+    const img = nativeImage.createFromPath(getAssetPath('icon.png'));
     img.setTemplateImage(true);
     return img;
   }

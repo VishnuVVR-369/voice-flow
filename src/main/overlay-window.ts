@@ -1,6 +1,7 @@
 import { BrowserWindow, screen } from 'electron';
 import path from 'node:path';
 import { OVERLAY_WIDTH, OVERLAY_HEIGHT } from '../shared/constants';
+import { getAssetPath } from './assets-path';
 
 declare const OVERLAY_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const OVERLAY_WINDOW_VITE_NAME: string;
@@ -55,6 +56,7 @@ export function createOverlayWindow(): BrowserWindow {
     focusable: false,
     hasShadow: false,
     show: false,
+    icon: getAssetPath('icon.png'),
     acceptFirstMouse: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

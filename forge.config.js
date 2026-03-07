@@ -1,6 +1,17 @@
 module.exports = {
   packagerConfig: {
-    asar: true,
+    asar: {
+      unpack: '**/node_modules/node-global-key-listener/bin/**/*',
+    },
+    ignore: (file) => {
+      if (!file) return false;
+
+      if (file === '/.vite' || file.startsWith('/.vite/')) return false;
+      if (file === '/package.json') return false;
+      if (file === '/node_modules' || file.startsWith('/node_modules/')) return false;
+
+      return true;
+    },
     icon: 'assets/icon',
   },
   rebuildConfig: {},
