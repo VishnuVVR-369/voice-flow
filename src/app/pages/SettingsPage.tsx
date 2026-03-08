@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import HotkeyEditor from '../components/HotkeyEditor';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 interface AudioDevice {
   deviceId: string;
@@ -15,6 +16,7 @@ const SettingsPage: React.FC = () => {
   const [toggleHotkey, setToggleHotkey] = useState('`');
   const [holdHotkey, setHoldHotkey] = useState('Shift+Space');
   const [transcriptionLanguage, setTranscriptionLanguage] = useState('en');
+  const settings = useAppSettings();
 
   const refreshDevices = async () => {
     try {
@@ -32,33 +34,16 @@ const SettingsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    const api = window.electronAPI;
-
-    api.getSettings().then((settings) => {
-      setToggleHotkey(settings.hotkey);
-      setHoldHotkey(settings.holdToTranscribeHotkey);
-      setSelectedDeviceId(settings.audioInputDeviceId);
-      setEnablePolish(settings.enablePolish);
-      setApiKey(settings.groqApiKey || '');
-      setTranscriptionLanguage(settings.language === '' ? '' : (settings.language || 'en'));
-    });
-    refreshDevices();
-  }, []);
+    setToggleHotkey(settings.hotkey);
+    setHoldHotkey(settings.holdToTranscribeHotkey);
+    setSelectedDeviceId(settings.audioInputDeviceId);
+    setEnablePolish(settings.enablePolish);
+    setApiKey(settings.groqApiKey || '');
+    setTranscriptionLanguage(settings.language === '' ? '' : (settings.language || 'en'));
+  }, [settings]);
 
   useEffect(() => {
-    const api = window.electronAPI;
-    if (typeof api.onSettingsUpdated !== 'function') {
-      return undefined;
-    }
-
-    return api.onSettingsUpdated((settings) => {
-      setToggleHotkey(settings.hotkey);
-      setHoldHotkey(settings.holdToTranscribeHotkey);
-      setSelectedDeviceId(settings.audioInputDeviceId);
-      setEnablePolish(settings.enablePolish);
-      setApiKey(settings.groqApiKey || '');
-      setTranscriptionLanguage(settings.language === '' ? '' : (settings.language || 'en'));
-    });
+    refreshDevices();
   }, []);
 
   useEffect(() => {

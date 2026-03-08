@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants';
 import { HistoryService } from './history-service';
 import { DictionaryService } from './dictionary-service';
@@ -8,12 +8,15 @@ const historyService = new HistoryService();
 const dictionaryService = new DictionaryService();
 
 /** Remove any existing handler before registering — safe for hot-reload. */
-function safeHandle(channel: string, handler: (event: Electron.IpcMainInvokeEvent, ...args: any[]) => any) {
+function safeHandle<TArgs extends unknown[], TResult>(
+  channel: string,
+  handler: (event: Electron.IpcMainInvokeEvent, ...args: TArgs) => TResult | Promise<TResult>,
+): void {
   ipcMain.removeHandler(channel);
   ipcMain.handle(channel, handler);
 }
 
-export function registerServiceIPC(getMainWindow: () => BrowserWindow | null): void {
+export function registerServiceIPC(): void {
   // --- History ---
   safeHandle(IPC_CHANNELS.HISTORY_LIST, async (_event, req: { page: number; pageSize: number }) => {
     return historyService.list(req.page, req.pageSize);

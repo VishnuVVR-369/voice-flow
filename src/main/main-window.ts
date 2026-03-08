@@ -6,6 +6,7 @@ declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
 let mainWindow: BrowserWindow | null = null;
+let allowMainWindowClose = false;
 
 export function createMainWindow(): BrowserWindow {
   mainWindow = new BrowserWindow({
@@ -30,10 +31,18 @@ export function createMainWindow(): BrowserWindow {
 
   // Hide instead of close (tray app pattern)
   mainWindow.on('close', (e) => {
-    if (!(mainWindow as any)._forceClose) {
+    if (!allowMainWindowClose) {
       e.preventDefault();
       mainWindow?.hide();
+      return;
     }
+
+    allowMainWindowClose = false;
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    allowMainWindowClose = false;
   });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -61,4 +70,13 @@ export function toggleMainWindow(): void {
     mainWindow.show();
     mainWindow.focus();
   }
+}
+
+export function closeMainWindow(): void {
+  if (!mainWindow) {
+    return;
+  }
+
+  allowMainWindowClose = true;
+  mainWindow.close();
 }

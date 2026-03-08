@@ -37,11 +37,6 @@ export interface TranscriptionRecord {
   created_at: string;
 }
 
-export interface HistoryListRequest {
-  page: number;
-  pageSize: number;
-}
-
 export interface HistoryListResult {
   data: TranscriptionRecord[];
   total: number;
