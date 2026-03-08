@@ -1,1 +1,0 @@
-/Users/vishnu/Desktop/Coding/Projects/stt/native/global-key-listener/target/aarch64-apple-darwin/release/global-key-listener: /Users/vishnu/Desktop/Coding/Projects/stt/native/global-key-listener/src/main.rs

@@ -99,5 +99,12 @@ out/
 # Build output
 dist/
 
+# Native build output
+native/**/target/
+
+# Packaged native binaries copied during local builds
+resources/binaries/*
+!resources/binaries/.gitkeep
+
 ToDo.txt
 docs/
