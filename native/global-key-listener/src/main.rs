@@ -1,8 +1,11 @@
+#![allow(unexpected_cfgs)]
+
 use chrono::Utc;
 use rdev::{grab, Event, EventType, Key};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::io::{self, BufRead, Write};
+use std::sync::{LazyLock, Mutex, MutexGuard};
 use std::thread;
 use std::time::Duration;
 
@@ -25,10 +28,9 @@ enum Command {
     RegisterHotkeys { hotkeys: Vec<HotkeyCombo> },
 }
 
-#[allow(static_mut_refs)]
-static mut REGISTERED_HOTKEYS: Vec<HotkeyCombo> = Vec::new();
-#[allow(static_mut_refs)]
-static mut CURRENTLY_PRESSED: Vec<String> = Vec::new();
+static REGISTERED_HOTKEYS: LazyLock<Mutex<Vec<HotkeyCombo>>> =
+    LazyLock::new(|| Mutex::new(Vec::new()));
+static CURRENTLY_PRESSED: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 
 #[cfg(target_os = "macos")]
 fn prevent_app_nap() -> id {
@@ -71,7 +73,7 @@ fn main() {
                 "timestamp": Utc::now().to_rfc3339(),
             });
             println!("{}", heartbeat);
-            io::stdout().flush().unwrap();
+            flush_stdout();
         }
     });
 
@@ -82,46 +84,37 @@ fn main() {
 
 fn handle_command(command: Command) {
     match command {
-        Command::RegisterHotkeys { hotkeys } => unsafe {
-            REGISTERED_HOTKEYS = hotkeys;
-            eprintln!("Registered {} hotkeys", REGISTERED_HOTKEYS.len());
-        },
+        Command::RegisterHotkeys { hotkeys } => {
+            let mut registered_hotkeys = registered_hotkeys();
+            *registered_hotkeys = hotkeys;
+            eprintln!("Registered {} hotkeys", registered_hotkeys.len());
+        }
     }
 
-    io::stdout().flush().unwrap();
+    flush_stdout();
 }
 
 fn should_block() -> bool {
-    unsafe {
-        for hotkey in &REGISTERED_HOTKEYS {
-            let all_pressed = hotkey
-                .keys
-                .iter()
-                .all(|key| CURRENTLY_PRESSED.contains(key));
-            let same_length = hotkey.keys.len() == CURRENTLY_PRESSED.len();
+    let hotkeys = registered_hotkeys().clone();
+    let pressed_keys = pressed_keys().clone();
 
-            if all_pressed && !hotkey.keys.is_empty() && same_length {
-                return true;
-            }
-        }
-
-        false
-    }
+    hotkeys.iter().any(|hotkey| {
+        !hotkey.keys.is_empty()
+            && hotkey.keys.iter().all(|key| pressed_keys.contains(key))
+            && hotkey.keys.len() == pressed_keys.len()
+    })
 }
 
 fn callback(event: Event) -> Option<Event> {
     match event.event_type {
         EventType::KeyPress(key) => {
             let key_name = format!("{:?}", key);
-            let normalized_key = if key_name == "Unknown(179)" {
-                "Function".to_string()
-            } else {
-                key_name.clone()
-            };
+            let normalized_key = normalize_key_name(&key_name);
 
-            unsafe {
-                if !CURRENTLY_PRESSED.contains(&normalized_key) {
-                    CURRENTLY_PRESSED.push(normalized_key);
+            {
+                let mut current_keys = pressed_keys();
+                if !current_keys.contains(&normalized_key) {
+                    current_keys.push(normalized_key.clone());
                 }
             }
 
@@ -129,12 +122,7 @@ fn callback(event: Event) -> Option<Event> {
 
             if should_block() {
                 None
-            } else if key_name == "Unknown(179)"
-                && unsafe {
-                    REGISTERED_HOTKEYS
-                        .iter()
-                        .any(|hotkey| hotkey.keys.contains(&"Function".to_string()))
-                }
+            } else if key_name == "Unknown(179)" && has_function_hotkey()
             {
                 None
             } else {
@@ -142,16 +130,9 @@ fn callback(event: Event) -> Option<Event> {
             }
         }
         EventType::KeyRelease(key) => {
-            let key_name = format!("{:?}", key);
-            let normalized_key = if key_name == "Unknown(179)" {
-                "Function".to_string()
-            } else {
-                key_name
-            };
+            let normalized_key = normalize_key_name(&format!("{:?}", key));
 
-            unsafe {
-                CURRENTLY_PRESSED.retain(|pressed| pressed != &normalized_key);
-            }
+            pressed_keys().retain(|pressed| pressed != &normalized_key);
 
             output_event("keyup", &key);
             Some(event)
@@ -169,5 +150,35 @@ fn output_event(event_type: &str, key: &Key) {
     });
 
     println!("{}", event);
-    io::stdout().flush().unwrap();
+    flush_stdout();
+}
+
+fn registered_hotkeys() -> MutexGuard<'static, Vec<HotkeyCombo>> {
+    REGISTERED_HOTKEYS.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn pressed_keys() -> MutexGuard<'static, Vec<String>> {
+    CURRENTLY_PRESSED
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn normalize_key_name(key_name: &str) -> String {
+    if key_name == "Unknown(179)" {
+        "Function".to_string()
+    } else {
+        key_name.to_string()
+    }
+}
+
+fn has_function_hotkey() -> bool {
+    registered_hotkeys()
+        .iter()
+        .any(|hotkey| hotkey.keys.iter().any(|key| key == "Function"))
+}
+
+fn flush_stdout() {
+    if let Err(error) = io::stdout().flush() {
+        eprintln!("Failed to flush stdout: {}", error);
+    }
 }

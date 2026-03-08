@@ -1,30 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import NavItem from './NavItem';
 import { formatHotkeyForDisplay } from '../../shared/hotkeys';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 const platform = navigator.userAgent.includes('Mac') ? 'darwin' : 'default';
 
 const Sidebar: React.FC = () => {
-  const [toggleHotkey, setToggleHotkey] = useState('`');
-  const [holdHotkey, setHoldHotkey] = useState('Shift+Space');
-
-  useEffect(() => {
-    const api = window.electronAPI;
-
-    api.getSettings().then((settings) => {
-      setToggleHotkey(settings.hotkey);
-      setHoldHotkey(settings.holdToTranscribeHotkey);
-    });
-
-    if (typeof api.onSettingsUpdated !== 'function') {
-      return undefined;
-    }
-
-    return api.onSettingsUpdated((settings) => {
-      setToggleHotkey(settings.hotkey);
-      setHoldHotkey(settings.holdToTranscribeHotkey);
-    });
-  }, []);
+  const { hotkey: toggleHotkey, holdToTranscribeHotkey: holdHotkey } = useAppSettings();
 
   return (
     <aside className="sidebar-shell">

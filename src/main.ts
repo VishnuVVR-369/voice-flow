@@ -5,7 +5,7 @@ import { TextInjector } from './main/text-injector';
 import { TrayManager } from './main/tray-manager';
 import { IPCHandler } from './main/ipc-handlers';
 import { createOverlayWindow, repositionOverlayTocursor, startOverlayPositioner, stopOverlayPositioner } from './main/overlay-window';
-import { toggleMainWindow, getMainWindow } from './main/main-window';
+import { toggleMainWindow, getMainWindow, closeMainWindow } from './main/main-window';
 import { getConfig, setConfig } from './main/config-store';
 import { registerServiceIPC } from './main/service-ipc';
 import { RealtimeSessionManager } from './main/realtime-session-manager';
@@ -82,7 +82,7 @@ function initApp(): void {
     trayManager?.updateMenu('transcribing');
   });
   ipcHandler.register();
-  registerServiceIPC(getMainWindow);
+  registerServiceIPC();
 
   sessionManager.warmUp();
 
@@ -101,10 +101,6 @@ function initApp(): void {
   shortcutManager.setOverlayWindow(overlayWindow);
   ipcHandler.setShortcutManager(shortcutManager);
   toggleMainWindow();
-  const mainWindow = getMainWindow();
-  if (mainWindow) {
-    shortcutManager.setMainWindow(mainWindow);
-  }
   shortcutManager.register();
 
   trayManager = new TrayManager(
@@ -161,11 +157,7 @@ app.on('before-quit', () => {
   cleanupShortcuts();
   stopOverlayPositioner();
   sessionManager.dispose();
-  const mw = getMainWindow();
-  if (mw) {
-    (mw as any)._forceClose = true;
-    mw.close();
-  }
+  closeMainWindow();
 });
 
 app.on('will-quit', () => {

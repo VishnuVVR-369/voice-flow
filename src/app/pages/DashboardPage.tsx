@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import StatCard from '../components/StatCard';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 function formatDuration(totalSeconds: number): string {
   if (totalSeconds < 60) return `${Math.round(totalSeconds)} sec`;
@@ -17,8 +18,7 @@ function formatWordCount(count: number): string {
 
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({ totalWords: 0, totalCount: 0, totalDurationSeconds: 0 });
-  const [toggleHotkey, setToggleHotkey] = useState('`');
-  const [holdHotkey, setHoldHotkey] = useState('Shift+Space');
+  const { hotkey: toggleHotkey, holdToTranscribeHotkey: holdHotkey } = useAppSettings();
 
   useEffect(() => {
     const fetchStats = () => {
@@ -29,21 +29,6 @@ const DashboardPage: React.FC = () => {
     fetchStats();
     const dispose = window.electronAPI.onHistoryUpdated(fetchStats);
     return dispose;
-  }, []);
-
-  useEffect(() => {
-    const api = window.electronAPI;
-    api.getSettings().then((settings) => {
-      setToggleHotkey(settings.hotkey);
-      setHoldHotkey(settings.holdToTranscribeHotkey);
-    });
-    if (typeof api.onSettingsUpdated !== 'function') {
-      return undefined;
-    }
-    return api.onSettingsUpdated((settings) => {
-      setToggleHotkey(settings.hotkey);
-      setHoldHotkey(settings.holdToTranscribeHotkey);
-    });
   }, []);
 
   return (

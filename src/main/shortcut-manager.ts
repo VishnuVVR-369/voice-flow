@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import readline from 'node:readline';
-import { BrowserWindow } from 'electron';
+import type { BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants';
 import { APP_DEFAULTS } from '../shared/app-defaults';
 import {
@@ -150,10 +150,6 @@ export class ShortcutManager {
 
   setOverlayWindow(window: BrowserWindow): void {
     this.overlayWindow = window;
-  }
-
-  setMainWindow(_window: BrowserWindow): void {
-    void _window;
   }
 
   private startRecording(source: RecordingSource): void {
@@ -528,20 +524,9 @@ export class ShortcutManager {
     return this.registerHotkeysWithListener();
   }
 
-  getHotkeys(): { toggleHotkey: string; holdToTranscribeHotkey: string } {
-    return {
-      toggleHotkey: this.toggleHotkey,
-      holdToTranscribeHotkey: this.holdToTranscribeHotkey,
-    };
-  }
-
   resetState(): void {
     this.isRecording = false;
     this.recordingSource = null;
     this.clearPressedTokens();
-  }
-
-  getIsRecording(): boolean {
-    return this.isRecording;
   }
 }

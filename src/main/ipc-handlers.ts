@@ -18,7 +18,7 @@ export class IPCHandler {
   private textInjector: TextInjector;
   private overlayWindow: BrowserWindow | null = null;
   private getMainWindow: (() => BrowserWindow | null) | null = null;
-  private onStatusChange: ((status: string) => void) | null = null;
+  private onStatusChange: ((status: AppStatus) => void) | null = null;
   private onRecordingEnded: (() => void) | null = null;
   private isStartingRealtime = false;
   private recordingStartedAt: number | null = null;
@@ -42,7 +42,7 @@ export class IPCHandler {
     this.getMainWindow = getter;
   }
 
-  setOnStatusChange(callback: (status: string) => void): void {
+  setOnStatusChange(callback: (status: AppStatus) => void): void {
     this.onStatusChange = callback;
   }
 
@@ -83,6 +83,18 @@ export class IPCHandler {
     }
   }
 
+  private cleanupRealtimeService(): void {
+    this.realtimeService?.disconnect();
+    this.realtimeService = null;
+    this.sessionManager?.scheduleReWarm();
+  }
+
+  private scheduleIdleStatus(delayMs: number): void {
+    setTimeout(() => {
+      this.sendStatus('idle');
+    }, delayMs);
+  }
+
   private validateHotkey(hotkey: string): { normalized?: string; error?: string } {
     const normalized = normalizeHotkeyForStorage(hotkey);
     const validationError = validateHotkeyTokens(hotkeyTokensFromAccelerator(normalized));
@@ -118,12 +130,7 @@ export class IPCHandler {
     ipcMain.on(IPC_CHANNELS.RECORDING_CANCELLED, () => {
       console.log('[IPC] Recording cancelled by user');
       this.recordingStartedAt = null;
-      // Clean up any active realtime session
-      if (this.realtimeService) {
-        this.realtimeService.disconnect();
-        this.realtimeService = null;
-      }
-      this.sessionManager?.scheduleReWarm();
+      this.cleanupRealtimeService();
       this.sendStatus('idle');
     });
 
@@ -303,13 +310,9 @@ export class IPCHandler {
           console.error('[IPC] Realtime error:', msg);
           this.overlayWindow?.webContents.send(IPC_CHANNELS.REALTIME_ERROR, msg);
           // Auto-recover: disconnect, reset state, return to idle
-          this.realtimeService?.disconnect();
-          this.realtimeService = null;
-          this.sessionManager?.scheduleReWarm();
+          this.cleanupRealtimeService();
           this.sendStatus('error');
-          setTimeout(() => {
-            this.sendStatus('idle');
-          }, 2000);
+          this.scheduleIdleStatus(2000);
         });
 
         console.log(`[IPC] Realtime session acquired (${Date.now() - t0}ms total)`);
@@ -329,7 +332,7 @@ export class IPCHandler {
       }
     });
 
-    // REALTIME_AUDIO_CHUNK: forward PCM16 to WebSocket
+    // REALTIME_AUDIO_CHUNK: forward PCM16 to the buffered transcription service
     ipcMain.on(IPC_CHANNELS.REALTIME_AUDIO_CHUNK, (_event, pcm16: ArrayBuffer) => {
       if (this.realtimeService?.isConnected) {
         this.realtimeService.sendAudioChunk(Buffer.from(pcm16));
@@ -352,16 +355,12 @@ export class IPCHandler {
         const transcriptResult: RealtimeTranscriptionResult = await this.realtimeService.stop();
         const rawText = transcriptResult.text;
         const flushMs = Date.now() - stopInitiatedAt;
-        this.realtimeService.disconnect();
-        this.realtimeService = null;
-        this.sessionManager?.scheduleReWarm();
+        this.cleanupRealtimeService();
 
         if (!rawText?.trim()) {
           this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_ERROR, 'No speech detected');
           this.sendStatus('error');
-          setTimeout(() => {
-            this.sendStatus('idle');
-          }, 2000);
+          this.scheduleIdleStatus(2000);
           return;
         }
 
@@ -426,21 +425,15 @@ export class IPCHandler {
         this.sendStatus('done');
         console.log(`[realtime pipeline: ${Date.now() - stopInitiatedAt}ms | flush: ${flushMs}ms | polish: ${polishMs}ms | inject: ${injectMs}ms]`);
 
-        setTimeout(() => {
-          this.sendStatus('idle');
-        }, 1500);
+        this.scheduleIdleStatus(1500);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Transcription failed';
         console.error('[IPC] Realtime stop error:', message);
-        this.realtimeService?.disconnect();
-        this.realtimeService = null;
-        this.sessionManager?.scheduleReWarm();
+        this.cleanupRealtimeService();
         this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_ERROR, message);
         this.sendStatus('error');
 
-        setTimeout(() => {
-          this.sendStatus('idle');
-        }, 3000);
+        this.scheduleIdleStatus(3000);
       }
     });
 
