@@ -16,12 +16,33 @@ import { normalizeHotkeyForStorage } from './shared/hotkeys';
 let overlayWindow: BrowserWindow | null = null;
 let shortcutManager: ShortcutManager | null = null;
 let trayManager: TrayManager | null = null;
+let hasCleanedUp = false;
 
 const transcriptionService = new TranscriptionService();
 const textInjector = new TextInjector();
 const ipcHandler = new IPCHandler(transcriptionService, textInjector);
 const sessionManager = new RealtimeSessionManager();
 ipcHandler.setSessionManager(sessionManager);
+
+function cleanupGlobalShortcuts(): void {
+  if (hasCleanedUp) {
+    return;
+  }
+
+  hasCleanedUp = true;
+
+  try {
+    shortcutManager?.unregister();
+  } catch (error) {
+    console.error('[Main] Failed to unregister shortcuts cleanly:', error);
+  }
+
+  try {
+    globalShortcut.unregisterAll();
+  } catch (error) {
+    console.error('[Main] Failed to unregister all Electron shortcuts:', error);
+  }
+}
 
 function initApp(): void {
   const config = getConfig();
@@ -130,6 +151,7 @@ app.on('ready', () => {
 });
 
 app.on('before-quit', () => {
+  cleanupGlobalShortcuts();
   sessionManager.dispose();
   const mw = getMainWindow();
   if (mw) {
@@ -139,7 +161,7 @@ app.on('before-quit', () => {
 });
 
 app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
+  cleanupGlobalShortcuts();
   trayManager?.destroy();
 });
 
