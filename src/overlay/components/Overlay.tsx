@@ -3,7 +3,7 @@ import { useAppStore } from '../stores/app-store';
 import { PcmAudioRecorder } from '../services/pcm-audio-recorder';
 import { soundEffects } from '../services/sound-effects';
 import { WaveformAnimation } from './WaveformAnimation';
-import { OVERLAY_WIDTH } from '../../shared/constants';
+import { OVERLAY_IDLE_HEIGHT, OVERLAY_IDLE_WIDTH } from '../../shared/constants';
 
 const pcmRecorder = new PcmAudioRecorder();
 
@@ -16,6 +16,11 @@ const MAX_RECORDING_MS = 10 * 60 * 1000;
 const HARD_KILL_MS = 15 * 60 * 1000;
 
 const PILL_HEIGHT = 34;
+const ACTIVE_PILL_WIDTH = 176;
+const TRANSCRIBING_PILL_WIDTH = 188;
+const DONE_PILL_WIDTH = 176;
+const ERROR_PILL_WIDTH = 280;
+const IDLE_WINDOW_HEIGHT = OVERLAY_IDLE_HEIGHT + 24;
 const TRANSCRIPT_PADDING = 24;
 const TRANSCRIPT_MAX_TEXT_HEIGHT = 200;
 
@@ -49,23 +54,34 @@ export const Overlay: React.FC = () => {
     }
   }, []);
 
-  const requestOverlayResize = useCallback((lines: string[]) => {
-    if (lines.length === 0) {
-      window.electronAPI.realtimeResize(OVERLAY_WIDTH, PILL_HEIGHT + 24);
+  const requestOverlayResize = useCallback((nextStatus: typeof status, lines: string[]) => {
+    if (nextStatus === 'recording' && lines.length > 0) {
+      requestAnimationFrame(() => {
+        const cardEl = transcriptCardRef.current;
+        if (cardEl) {
+          const cardHeight = cardEl.scrollHeight;
+          const totalHeight = Math.min(
+            cardHeight + PILL_HEIGHT + 8,
+            TRANSCRIPT_MAX_TEXT_HEIGHT + TRANSCRIPT_PADDING + PILL_HEIGHT + 8
+          );
+          window.electronAPI.realtimeResize(320, totalHeight + 24);
+        }
+      });
       return;
     }
 
-    requestAnimationFrame(() => {
-      const cardEl = transcriptCardRef.current;
-      if (cardEl) {
-        const cardHeight = cardEl.scrollHeight;
-        const totalHeight = Math.min(
-          cardHeight + PILL_HEIGHT + 8,
-          TRANSCRIPT_MAX_TEXT_HEIGHT + TRANSCRIPT_PADDING + PILL_HEIGHT + 8
-        );
-        window.electronAPI.realtimeResize(OVERLAY_WIDTH, totalHeight + 24);
-      }
-    });
+    const width = nextStatus === 'recording'
+      ? ACTIVE_PILL_WIDTH
+      : nextStatus === 'transcribing'
+        ? TRANSCRIBING_PILL_WIDTH
+        : nextStatus === 'done'
+          ? DONE_PILL_WIDTH
+          : nextStatus === 'error'
+            ? ERROR_PILL_WIDTH
+            : OVERLAY_IDLE_WIDTH;
+
+    const height = nextStatus === 'idle' ? IDLE_WINDOW_HEIGHT : PILL_HEIGHT + 24;
+    window.electronAPI.realtimeResize(width, height);
   }, []);
 
   const handleCancelRecording = useCallback(async () => {
@@ -234,8 +250,8 @@ export const Overlay: React.FC = () => {
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    requestOverlayResize(transcriptLines);
-  }, [transcriptLines, requestOverlayResize]);
+    requestOverlayResize(status, transcriptLines);
+  }, [status, transcriptLines, requestOverlayResize]);
 
   useEffect(() => {
     const disposers = [
@@ -273,10 +289,6 @@ export const Overlay: React.FC = () => {
     return () => disposers.forEach((dispose) => dispose());
   }, []);
 
-  if (status === 'idle') {
-    return <div className="overlay-container" />;
-  }
-
   const fullTranscript = transcriptLines.join(' ');
   const hasTranscript = fullTranscript.length > 0;
   const overlayPillClassName = [
@@ -301,6 +313,8 @@ export const Overlay: React.FC = () => {
         )}
 
         <div className={overlayPillClassName}>
+          <div className={`pill-layer pill-layer--idle ${status === 'idle' ? 'pill-layer--active' : ''}`} />
+
           <div className={`pill-layer ${status === 'recording' ? 'pill-layer--active' : ''}`}>
             <span className="overlay-status-dot" />
             <WaveformAnimation

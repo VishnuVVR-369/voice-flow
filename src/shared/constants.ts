@@ -51,5 +51,7 @@ export const IPC_CHANNELS = {
 
 export const DEFAULT_HOTKEY = '`';
 
+export const OVERLAY_IDLE_WIDTH = 36;
+export const OVERLAY_IDLE_HEIGHT = 8;
 export const OVERLAY_WIDTH = 360;
 export const OVERLAY_HEIGHT = 300;

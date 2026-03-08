@@ -4,7 +4,7 @@ import { TranscriptionService } from './main/transcription-service';
 import { TextInjector } from './main/text-injector';
 import { TrayManager } from './main/tray-manager';
 import { IPCHandler } from './main/ipc-handlers';
-import { createOverlayWindow, repositionOverlayTocursor } from './main/overlay-window';
+import { createOverlayWindow, repositionOverlayTocursor, startOverlayPositioner, stopOverlayPositioner } from './main/overlay-window';
 import { toggleMainWindow, getMainWindow } from './main/main-window';
 import { getConfig, setConfig } from './main/config-store';
 import { registerServiceIPC } from './main/service-ipc';
@@ -68,6 +68,7 @@ function initApp(): void {
   ensureDockIconVisible();
 
   overlayWindow = createOverlayWindow();
+  startOverlayPositioner(overlayWindow);
   ipcHandler.setOverlayWindow(overlayWindow);
   ipcHandler.setGetMainWindow(getMainWindow);
   ipcHandler.setOnStatusChange((status) => {
@@ -158,6 +159,7 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   cleanupShortcuts();
+  stopOverlayPositioner();
   sessionManager.dispose();
   const mw = getMainWindow();
   if (mw) {
