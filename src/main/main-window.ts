@@ -59,6 +59,27 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
 
+export function showMainWindow(): BrowserWindow {
+  if (!mainWindow) {
+    return createMainWindow();
+  }
+
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+
+  mainWindow.focus();
+  return mainWindow;
+}
+
+export function prepareMainWindowForQuit(): void {
+  allowMainWindowClose = true;
+}
+
 export function toggleMainWindow(): void {
   if (!mainWindow) {
     createMainWindow();
@@ -77,6 +98,6 @@ export function closeMainWindow(): void {
     return;
   }
 
-  allowMainWindowClose = true;
+  prepareMainWindowForQuit();
   mainWindow.close();
 }

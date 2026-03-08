@@ -5,7 +5,7 @@ import { TextInjector } from './main/text-injector';
 import { TrayManager } from './main/tray-manager';
 import { IPCHandler } from './main/ipc-handlers';
 import { createOverlayWindow, repositionOverlayTocursor, startOverlayPositioner, stopOverlayPositioner } from './main/overlay-window';
-import { toggleMainWindow, getMainWindow, closeMainWindow } from './main/main-window';
+import { showMainWindow, getMainWindow, closeMainWindow, prepareMainWindowForQuit } from './main/main-window';
 import { getConfig, setConfig } from './main/config-store';
 import { registerServiceIPC } from './main/service-ipc';
 import { RealtimeSessionManager } from './main/realtime-session-manager';
@@ -17,6 +17,7 @@ let overlayWindow: BrowserWindow | null = null;
 let shortcutManager: ShortcutManager | null = null;
 let trayManager: TrayManager | null = null;
 let hasCleanedUp = false;
+let isQuitting = false;
 
 const transcriptionService = new TranscriptionService();
 const textInjector = new TextInjector();
@@ -49,6 +50,16 @@ function cleanupShortcuts(): void {
   } catch (error) {
     console.error('[Main] Failed to unregister shortcuts cleanly:', error);
   }
+}
+
+function quitApp(): void {
+  if (isQuitting) {
+    return;
+  }
+
+  isQuitting = true;
+  prepareMainWindowForQuit();
+  app.quit();
 }
 
 function initApp(): void {
@@ -100,14 +111,17 @@ function initApp(): void {
   });
   shortcutManager.setOverlayWindow(overlayWindow);
   ipcHandler.setShortcutManager(shortcutManager);
-  toggleMainWindow();
+  showMainWindow();
   shortcutManager.register();
 
   trayManager = new TrayManager(
-    () => app.quit(),
+    () => quitApp(),
     () => {
+      if (isQuitting) {
+        return;
+      }
       ensureDockIconVisible();
-      toggleMainWindow();
+      showMainWindow();
     },
   );
   trayManager.create();
@@ -150,13 +164,24 @@ app.on('ready', () => {
 });
 
 app.on('activate', () => {
+  if (isQuitting) {
+    return;
+  }
+
   ensureDockIconVisible();
+  showMainWindow();
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
+  prepareMainWindowForQuit();
   cleanupShortcuts();
   stopOverlayPositioner();
   sessionManager.dispose();
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.close();
+    overlayWindow = null;
+  }
   closeMainWindow();
 });
 
