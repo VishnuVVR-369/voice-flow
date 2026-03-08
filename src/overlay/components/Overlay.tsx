@@ -279,6 +279,13 @@ export const Overlay: React.FC = () => {
 
   const fullTranscript = transcriptLines.join(' ');
   const hasTranscript = fullTranscript.length > 0;
+  const overlayPillClassName = [
+    'overlay-pill',
+    `overlay-pill--${status}`,
+    hasTranscript ? 'overlay-pill--with-transcript' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div className="overlay-container">
@@ -293,7 +300,7 @@ export const Overlay: React.FC = () => {
           </div>
         )}
 
-        <div className="overlay-pill">
+        <div className={overlayPillClassName}>
           <div className={`pill-layer ${status === 'recording' ? 'pill-layer--active' : ''}`}>
             <span className="overlay-status-dot" />
             <WaveformAnimation
@@ -301,7 +308,7 @@ export const Overlay: React.FC = () => {
               isActive={status === 'recording'}
             />
             <span className={`overlay-text${volumeWarning === 'silence' ? ' overlay-warning' : ''}`}>
-              {volumeWarning === 'silence' ? 'No voice detected' : 'Listening'}
+              {volumeWarning === 'silence' ? 'No input' : 'Listening'}
             </span>
             <button
               className="cancel-button"
@@ -317,18 +324,23 @@ export const Overlay: React.FC = () => {
           </div>
 
           <div className={`pill-layer ${status === 'transcribing' ? 'pill-layer--active' : ''}`}>
+            <span className="processing-dots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
             <span className="overlay-text">Polishing transcript...</span>
           </div>
 
           <div className={`pill-layer ${status === 'done' ? 'pill-layer--active' : ''}`}>
+            <span className="status-badge status-badge--done" aria-hidden="true" />
             <span className="overlay-text overlay-done">Pasted successfully</span>
           </div>
 
           <div className={`pill-layer ${status === 'error' ? 'pill-layer--active' : ''}`}>
+            <span className="status-badge status-badge--error" aria-hidden="true" />
             <span className="overlay-text overlay-error">{error || 'Error'}</span>
           </div>
-
-          {status === 'transcribing' && <div className="transcribe-sweep" />}
         </div>
       </div>
     </div>

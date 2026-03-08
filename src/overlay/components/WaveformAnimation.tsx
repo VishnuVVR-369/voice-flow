@@ -5,12 +5,12 @@ interface WaveformAnimationProps {
   isActive: boolean;
 }
 
-const BAR_COUNT = 11;
-const BAR_WIDTH = 3;
-const BAR_GAP = 2;
-const BAR_MAX_HEIGHT = 20;
+const BAR_COUNT = 21;
+const BAR_WIDTH = 2;
+const BAR_GAP = 1;
+const BAR_MAX_HEIGHT = 16;
 
-const BASE_HEIGHTS = [3, 5, 8, 12, 16, 20, 16, 12, 8, 5, 3];
+const BASE_HEIGHTS = [4, 4, 5, 5, 6, 7, 8, 10, 12, 14, 16, 14, 12, 10, 8, 7, 6, 5, 5, 4, 4];
 const SILENCE_HEIGHT = 2;
 
 export const WaveformAnimation: React.FC<WaveformAnimationProps> = ({ analyser, isActive }) => {
@@ -55,9 +55,9 @@ export const WaveformAnimation: React.FC<WaveformAnimationProps> = ({ analyser, 
         const x = i * (BAR_WIDTH + BAR_GAP);
         const y = (BAR_MAX_HEIGHT - height) / 2;
 
-        ctx.fillStyle = isActive ? '#f8efe0' : '#c6bbae';
+        ctx.fillStyle = isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.45)';
         ctx.beginPath();
-        ctx.roundRect(x, y, BAR_WIDTH, height, 1.5);
+        ctx.roundRect(x, y, BAR_WIDTH, height, 999);
         ctx.fill();
       }
 
