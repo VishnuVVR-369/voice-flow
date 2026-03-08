@@ -22,7 +22,7 @@ const platform = navigator.userAgent.includes('Mac') ? 'darwin' : 'default';
 const HotkeyEditor: React.FC<HotkeyEditorProps> = ({
   value,
   onChange,
-  title = 'Global Shortcut',
+  title = 'App Shortcut',
   description = 'Press the keys you want to use. Press a key again to remove it from the shortcut.',
   changeButtonLabel = 'Change shortcut',
   saveButtonLabel = 'Save shortcut',

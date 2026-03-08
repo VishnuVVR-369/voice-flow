@@ -1,15 +1,15 @@
-import { app, BrowserWindow, globalShortcut, systemPreferences, dialog } from 'electron';
+import { app, BrowserWindow, systemPreferences, dialog } from 'electron';
 import { ShortcutManager } from './main/shortcut-manager';
 import { TranscriptionService } from './main/transcription-service';
 import { TextInjector } from './main/text-injector';
 import { TrayManager } from './main/tray-manager';
 import { IPCHandler } from './main/ipc-handlers';
-import { createOverlayWindow, repositionOverlayTocursor, showOverlayWindow } from './main/overlay-window';
+import { createOverlayWindow, repositionOverlayTocursor } from './main/overlay-window';
 import { toggleMainWindow, getMainWindow } from './main/main-window';
 import { getConfig, setConfig } from './main/config-store';
-import { IPC_CHANNELS } from './shared/constants';
 import { registerServiceIPC } from './main/service-ipc';
 import { RealtimeSessionManager } from './main/realtime-session-manager';
+import { getAssetPath } from './main/assets-path';
 import { APP_DEFAULTS } from './shared/app-defaults';
 import { normalizeHotkeyForStorage } from './shared/hotkeys';
 
@@ -24,7 +24,20 @@ const ipcHandler = new IPCHandler(transcriptionService, textInjector);
 const sessionManager = new RealtimeSessionManager();
 ipcHandler.setSessionManager(sessionManager);
 
-function cleanupGlobalShortcuts(): void {
+function ensureDockIconVisible(): void {
+  if (process.platform !== 'darwin') {
+    return;
+  }
+
+  try {
+    app.dock.setIcon(getAssetPath('icon.png'));
+    app.dock.show();
+  } catch (error) {
+    console.warn('[Main] Failed to set/show dock icon:', error);
+  }
+}
+
+function cleanupShortcuts(): void {
   if (hasCleanedUp) {
     return;
   }
@@ -35,12 +48,6 @@ function cleanupGlobalShortcuts(): void {
     shortcutManager?.unregister();
   } catch (error) {
     console.error('[Main] Failed to unregister shortcuts cleanly:', error);
-  }
-
-  try {
-    globalShortcut.unregisterAll();
-  } catch (error) {
-    console.error('[Main] Failed to unregister all Electron shortcuts:', error);
   }
 }
 
@@ -58,6 +65,7 @@ function initApp(): void {
   console.log('Toggle Hotkey:', config.hotkey);
   console.log('Hold-to-Transcribe Hotkey:', config.holdToTranscribeHotkey);
   console.log('Language:', config.language);
+  ensureDockIconVisible();
 
   overlayWindow = createOverlayWindow();
   ipcHandler.setOverlayWindow(overlayWindow);
@@ -66,9 +74,6 @@ function initApp(): void {
     trayManager?.updateMenu(status);
     if (status === 'idle') {
       shortcutManager?.resetState();
-    }
-    if (status !== 'recording') {
-      try { globalShortcut.unregister('Escape'); } catch { /* already unregistered */ }
     }
   });
   ipcHandler.setOnRecordingEnded(() => {
@@ -85,32 +90,28 @@ function initApp(): void {
       ipcHandler.markRecordingStarted();
       if (overlayWindow) {
         repositionOverlayTocursor(overlayWindow);
-        overlayWindow.setIgnoreMouseEvents(false);
-        showOverlayWindow(overlayWindow);
-        overlayWindow.moveTop();
       }
-
-      globalShortcut.register('Escape', () => {
-        console.log('[Main] ESC pressed — cancelling recording');
-        overlayWindow?.webContents.send(IPC_CHANNELS.RECORDING_CANCEL);
-        try { globalShortcut.unregister('Escape'); } catch { /* noop */ }
-      });
-
+      ipcHandler.setStatus('recording');
       trayManager?.updateMenu('recording');
     } else {
-      try { globalShortcut.unregister('Escape'); } catch { /* noop */ }
       trayManager?.updateMenu('transcribing');
     }
   });
   shortcutManager.setOverlayWindow(overlayWindow);
   ipcHandler.setShortcutManager(shortcutManager);
-  shortcutManager.register();
-
   toggleMainWindow();
+  const mainWindow = getMainWindow();
+  if (mainWindow) {
+    shortcutManager.setMainWindow(mainWindow);
+  }
+  shortcutManager.register();
 
   trayManager = new TrayManager(
     () => app.quit(),
-    () => toggleMainWindow(),
+    () => {
+      ensureDockIconVisible();
+      toggleMainWindow();
+    },
   );
   trayManager.create();
 
@@ -121,8 +122,8 @@ function initApp(): void {
       dialog.showMessageBox({
         type: 'warning',
         title: 'Accessibility Permission Required',
-        message: 'VoiceFlow needs Accessibility access to auto-paste transcribed text.',
-        detail: 'Go to System Settings → Privacy & Security → Accessibility, then add and enable the app running this process (Cursor / Terminal).\n\nWithout this, transcribed text will be copied to clipboard but not auto-pasted.',
+        message: 'VoiceFlow needs Accessibility access for global shortcuts and auto-paste.',
+        detail: 'Go to System Settings → Privacy & Security → Accessibility, then add and enable the app running this process (Cursor / Terminal).\n\nWithout this, VoiceFlow cannot listen for shortcuts while you are in other apps, and transcribed text will only be copied instead of pasted automatically.',
         buttons: ['Open System Settings', 'Later'],
         defaultId: 0,
       }).then((result) => {
@@ -147,11 +148,16 @@ process.on('unhandledRejection', (reason) => {
 });
 
 app.on('ready', () => {
+  ensureDockIconVisible();
   initApp();
 });
 
+app.on('activate', () => {
+  ensureDockIconVisible();
+});
+
 app.on('before-quit', () => {
-  cleanupGlobalShortcuts();
+  cleanupShortcuts();
   sessionManager.dispose();
   const mw = getMainWindow();
   if (mw) {
@@ -161,7 +167,7 @@ app.on('before-quit', () => {
 });
 
 app.on('will-quit', () => {
-  cleanupGlobalShortcuts();
+  cleanupShortcuts();
   trayManager?.destroy();
 });
 

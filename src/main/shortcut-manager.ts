@@ -1,48 +1,126 @@
-import { globalShortcut, BrowserWindow } from 'electron';
-import { GlobalKeyboardListener } from 'node-global-key-listener';
-import type { IConfig, IGlobalKeyDownMap, IGlobalKeyEvent, IGlobalKeyListener } from 'node-global-key-listener';
-import util from 'node:util';
-import path from 'node:path';
-import fs from 'node:fs';
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import readline from 'node:readline';
+import { BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants';
 import { APP_DEFAULTS } from '../shared/app-defaults';
 import {
   hotkeyTokenFromGlobalKeyName,
   hotkeyTokensFromAccelerator,
-  hotkeyTokensFromGlobalDownMap,
   isHotkeyPressed,
+  normalizeHotkeyTokens,
 } from '../shared/hotkeys';
+import { getNativeBinaryPath } from './native-binary-path';
 
 const TOGGLE_DEBOUNCE_MS = 250;
+const HEARTBEAT_CHECK_INTERVAL_MS = 5000;
+const HEARTBEAT_TIMEOUT_MS = 15000;
+const STUCK_KEY_TIMEOUT_MS = 5000;
+const STUCK_KEY_CHECK_INTERVAL_MS = 1000;
+const KEY_LISTENER_BINARY = 'global-key-listener';
 
 type RecordingSource = 'toggle' | 'hold' | null;
-
-const legacyUtil = util as unknown as {
-  isObject?: (value: unknown) => boolean;
-  isFunction?: (value: unknown) => boolean;
-  isString?: (value: unknown) => boolean;
-  isNumber?: (value: unknown) => boolean;
-};
-
-if (typeof legacyUtil.isObject !== 'function') {
-  legacyUtil.isObject = (value: unknown): boolean => value !== null && typeof value === 'object';
-}
-if (typeof legacyUtil.isFunction !== 'function') {
-  legacyUtil.isFunction = (value: unknown): boolean => typeof value === 'function';
-}
-if (typeof legacyUtil.isString !== 'function') {
-  legacyUtil.isString = (value: unknown): boolean => typeof value === 'string';
-}
-if (typeof legacyUtil.isNumber !== 'function') {
-  legacyUtil.isNumber = (value: unknown): boolean => typeof value === 'number';
-}
 
 interface HotkeyUpdatePayload {
   toggleHotkey?: string;
   holdToTranscribeHotkey?: string;
 }
 
+interface KeyListenerCommand {
+  command: 'register_hotkeys';
+  hotkeys: Array<{ keys: string[] }>;
+}
+
+interface KeyEvent {
+  type: 'keydown' | 'keyup';
+  key: string;
+  raw_code: number;
+  timestamp: string;
+}
+
+interface HeartbeatEvent {
+  type: 'heartbeat_ping';
+  id: string;
+  timestamp: string;
+}
+
+type KeyListenerEvent = KeyEvent | HeartbeatEvent;
+
+const RAW_KEY_VARIANTS: Record<string, string[][]> = {
+  Command: [['MetaLeft'], ['MetaRight']],
+  Control: [['ControlLeft'], ['ControlRight']],
+  Alt: [['Alt'], ['AltGr']],
+  Shift: [['ShiftLeft'], ['ShiftRight']],
+  Fn: [['Function']],
+  Space: [['Space']],
+  Tab: [['Tab']],
+  Enter: [['Return']],
+  Escape: [['Escape']],
+  Backspace: [['Backspace']],
+  Delete: [['Delete']],
+  '`': [['BackQuote']],
+  '-': [['Minus']],
+  '=': [['Equal']],
+  '[': [['LeftBracket']],
+  ']': [['RightBracket']],
+  '\\': [['BackSlash']],
+  ';': [['SemiColon']],
+  '\'': [['Quote']],
+  ',': [['Comma']],
+  '.': [['Dot']],
+  '/': [['Slash']],
+  Up: [['UpArrow']],
+  Down: [['DownArrow']],
+  Left: [['LeftArrow']],
+  Right: [['RightArrow']],
+};
+
+function getRawKeyVariants(token: string): string[][] {
+  if (token in RAW_KEY_VARIANTS) {
+    return RAW_KEY_VARIANTS[token];
+  }
+
+  if (/^[A-Z]$/.test(token)) {
+    return [[`Key${token}`]];
+  }
+
+  if (/^[0-9]$/.test(token)) {
+    return [[`Num${token}`]];
+  }
+
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(token)) {
+    return [[token]];
+  }
+
+  return [[token]];
+}
+
+function expandRawHotkeyVariants(hotkey: string): string[][] {
+  const tokens = hotkeyTokensFromAccelerator(hotkey);
+  const variants = tokens.reduce<string[][]>(
+    (current, token) => {
+      const rawVariants = getRawKeyVariants(token);
+      return current.flatMap((combo) => rawVariants.map((variant) => [...combo, ...variant]));
+    },
+    [[]],
+  );
+
+  const uniqueCombos = new Map<string, string[]>();
+  for (const combo of variants) {
+    const unique = Array.from(new Set(combo));
+    const key = [...unique].sort().join('|');
+    uniqueCombos.set(key, unique);
+  }
+
+  return Array.from(uniqueCombos.values());
+}
+
 export class ShortcutManager {
+  private keyListenerProcess: ChildProcessWithoutNullStreams | null = null;
+  private stdoutReader: readline.Interface | null = null;
+  private stderrReader: readline.Interface | null = null;
+  private rawPressedKeys = new Set<string>();
+  private keyPressTimestamps = new Map<string, number>();
   private isRecording = false;
   private recordingSource: RecordingSource = null;
   private overlayWindow: BrowserWindow | null = null;
@@ -53,8 +131,12 @@ export class ShortcutManager {
   private isEnabled = true;
   private toggleShortcutActive = false;
   private holdShortcutActive = false;
-  private keyListener: GlobalKeyboardListener | null = null;
-  private keyListenerHandler: IGlobalKeyListener | null = null;
+  private pressedTokens: string[] = [];
+  private keepProcessAlive = false;
+  private lastHeartbeatReceived = 0;
+  private heartbeatCheckTimer: NodeJS.Timeout | null = null;
+  private stuckKeyCheckTimer: NodeJS.Timeout | null = null;
+  private restartTimer: NodeJS.Timeout | null = null;
 
   constructor(
     toggleHotkey: string = APP_DEFAULTS.hotkey,
@@ -70,8 +152,15 @@ export class ShortcutManager {
     this.overlayWindow = window;
   }
 
+  setMainWindow(_window: BrowserWindow): void {
+    void _window;
+  }
+
   private startRecording(source: RecordingSource): void {
-    if (this.isRecording) return;
+    if (this.isRecording) {
+      return;
+    }
+
     this.isRecording = true;
     this.recordingSource = source;
     this.overlayWindow?.webContents.send(IPC_CHANNELS.RECORDING_START);
@@ -79,7 +168,10 @@ export class ShortcutManager {
   }
 
   private stopRecording(): void {
-    if (!this.isRecording) return;
+    if (!this.isRecording) {
+      return;
+    }
+
     this.isRecording = false;
     this.recordingSource = null;
     this.overlayWindow?.webContents.send(IPC_CHANNELS.RECORDING_STOP);
@@ -91,6 +183,7 @@ export class ShortcutManager {
     if (now - this.lastToggleTime < TOGGLE_DEBOUNCE_MS) {
       return;
     }
+
     this.lastToggleTime = now;
 
     if (this.isRecording) {
@@ -101,176 +194,301 @@ export class ShortcutManager {
     this.startRecording('toggle');
   }
 
-  private isShortcutEvent(hotkey: string, event: IGlobalKeyEvent): boolean {
-    const eventToken = hotkeyTokenFromGlobalKeyName(event.name);
-    if (!eventToken) {
+  private getEffectivePressedKeyCount(): number {
+    let count = 0;
+
+    for (const key of this.rawPressedKeys) {
+      if (key === 'Unknown(179)' && this.rawPressedKeys.has('Function')) {
+        continue;
+      }
+      count += 1;
+    }
+
+    return count;
+  }
+
+  private matchesHotkeyExactly(shortcutHotkey: string, pressedTokens: string[]): boolean {
+    if (!isHotkeyPressed(shortcutHotkey, pressedTokens)) {
       return false;
     }
 
-    return hotkeyTokensFromAccelerator(hotkey).includes(eventToken);
+    return hotkeyTokensFromAccelerator(shortcutHotkey).length === this.getEffectivePressedKeyCount();
   }
 
-  private evaluateToggleShortcut(event: IGlobalKeyEvent, isDown: IGlobalKeyDownMap): boolean {
-    const pressedTokens = hotkeyTokensFromGlobalDownMap(isDown as Record<string, boolean>);
-    const togglePressed = isHotkeyPressed(this.toggleHotkey, pressedTokens);
-    const wasActive = this.toggleShortcutActive;
+  private evaluateToggleShortcut(inputType: 'keyDown' | 'keyUp', pressedTokens: string[]): void {
+    const togglePressed = this.matchesHotkeyExactly(this.toggleHotkey, pressedTokens);
 
-    if (togglePressed && !wasActive && event.state === 'DOWN') {
+    if (togglePressed && !this.toggleShortcutActive && inputType === 'keyDown') {
       this.toggleShortcutActive = true;
       this.handleToggleShortcut();
-    } else if (!togglePressed && wasActive) {
+    } else if (!togglePressed && this.toggleShortcutActive) {
       this.toggleShortcutActive = false;
     }
-
-    return togglePressed || (wasActive && this.isShortcutEvent(this.toggleHotkey, event));
   }
 
-  private evaluateHoldShortcut(event: IGlobalKeyEvent, isDown: IGlobalKeyDownMap): boolean {
-    const pressedTokens = hotkeyTokensFromGlobalDownMap(isDown as Record<string, boolean>);
-    const holdPressed = isHotkeyPressed(this.holdToTranscribeHotkey, pressedTokens);
-    const wasActive = this.holdShortcutActive;
+  private evaluateHoldShortcut(pressedTokens: string[]): void {
+    const holdPressed = this.matchesHotkeyExactly(this.holdToTranscribeHotkey, pressedTokens);
 
-    if (holdPressed && !wasActive) {
+    if (holdPressed && !this.holdShortcutActive) {
       this.holdShortcutActive = true;
       if (!this.isRecording) {
         this.startRecording('hold');
       }
-    } else if (!holdPressed && wasActive) {
+    } else if (!holdPressed && this.holdShortcutActive) {
       this.holdShortcutActive = false;
       if (this.isRecording && this.recordingSource === 'hold') {
         this.stopRecording();
       }
     }
-
-    return holdPressed || (wasActive && this.isShortcutEvent(this.holdToTranscribeHotkey, event));
   }
 
-  private resolveMacKeyServerPath(): string | null {
-    if (process.platform !== 'darwin') {
-      return null;
-    }
-
-    try {
-      const packageJsonPath = require.resolve('node-global-key-listener/package.json');
-      const packageDir = path.dirname(packageJsonPath);
-      const asarPathToken = `${path.sep}app.asar${path.sep}`;
-      const unpackedPackageDir = packageDir.includes(asarPathToken)
-        ? packageDir.replace(asarPathToken, `${path.sep}app.asar.unpacked${path.sep}`)
-        : packageDir;
-
-      const unpackedServerPath = path.join(unpackedPackageDir, 'bin', 'MacKeyServer');
-      if (fs.existsSync(unpackedServerPath)) {
-        return unpackedServerPath;
-      }
-
-      return path.join(packageDir, 'bin', 'MacKeyServer');
-    } catch {
-      return null;
-    }
+  private syncPressedTokens(): void {
+    this.pressedTokens = normalizeHotkeyTokens(
+      Array.from(this.rawPressedKeys)
+        .map((key) => hotkeyTokenFromGlobalKeyName(key))
+        .filter((token): token is string => Boolean(token)),
+    );
   }
 
-  private ensureMacKeyServerExecutable(serverPath: string): void {
-    try {
-      fs.chmodSync(serverPath, 0o755);
-    } catch (error) {
-      console.warn('[Shortcut] Failed to set executable permission for MacKeyServer:', error);
+  private recomputeShortcutState(inputType: 'keyDown' | 'keyUp'): void {
+    this.syncPressedTokens();
+    this.evaluateToggleShortcut(inputType, this.pressedTokens);
+    this.evaluateHoldShortcut(this.pressedTokens);
+  }
+
+  private clearPressedTokens(): void {
+    const wasHoldRecording = this.isRecording && this.recordingSource === 'hold';
+    this.rawPressedKeys.clear();
+    this.keyPressTimestamps.clear();
+    this.pressedTokens = [];
+    this.toggleShortcutActive = false;
+    this.holdShortcutActive = false;
+
+    if (wasHoldRecording) {
+      this.stopRecording();
     }
   }
 
-  private attachGlobalKeyListener(): void {
-    this.detachGlobalKeyListener();
-
-    const listenerConfig: IConfig = {
-      mac: {
-        onError: (errorCode) => {
-          console.error(`[Shortcut] Global key listener error: ${errorCode}`);
-        },
-      },
-    };
-
-    const macKeyServerPath = this.resolveMacKeyServerPath();
-    if (macKeyServerPath) {
-      this.ensureMacKeyServerExecutable(macKeyServerPath);
-      listenerConfig.mac = {
-        ...listenerConfig.mac,
-        serverPath: macKeyServerPath,
-      };
-    }
-
-    this.keyListener = new GlobalKeyboardListener(listenerConfig);
-
-    this.keyListenerHandler = (event: IGlobalKeyEvent, isDown: IGlobalKeyDownMap) => {
-      if (event.state !== 'DOWN' && event.state !== 'UP') {
-        return false;
-      }
-
-      let shouldCapture = false;
-
-      if (process.platform === 'darwin') {
-        shouldCapture = this.evaluateToggleShortcut(event, isDown) || shouldCapture;
-      }
-
-      shouldCapture = this.evaluateHoldShortcut(event, isDown) || shouldCapture;
-      return shouldCapture;
-    };
-
-    void this.keyListener.addListener(this.keyListenerHandler).catch((error) => {
-      console.error('[Shortcut] Failed to start global key listener:', error);
-    });
-  }
-
-  private detachGlobalKeyListener(): void {
-    if (!this.keyListener) {
-      this.toggleShortcutActive = false;
-      this.holdShortcutActive = false;
+  private handleKeyEvent(event: KeyEvent): void {
+    if (!this.isEnabled) {
       return;
     }
 
-    if (this.keyListenerHandler) {
-      this.keyListener.removeListener(this.keyListenerHandler);
-      this.keyListenerHandler = null;
-    }
-
-    this.keyListener.kill();
-    this.keyListener = null;
-    this.toggleShortcutActive = false;
-    this.holdShortcutActive = false;
-  }
-
-  private registerToggleHotkey(hotkey: string): boolean {
-    globalShortcut.unregister(hotkey);
-    const ok = globalShortcut.register(hotkey, () => {
-      if (process.platform !== 'darwin') {
-        this.handleToggleShortcut();
+    if (event.type === 'keydown') {
+      this.rawPressedKeys.add(event.key);
+      if (!this.keyPressTimestamps.has(event.key)) {
+        this.keyPressTimestamps.set(event.key, Date.now());
       }
-    });
-    if (!ok) {
-      console.error(`Failed to register global toggle shortcut: ${hotkey}`);
+      this.recomputeShortcutState('keyDown');
+      return;
     }
-    return ok;
+
+    this.rawPressedKeys.delete(event.key);
+    this.keyPressTimestamps.delete(event.key);
+    this.recomputeShortcutState('keyUp');
   }
 
-  register(): boolean {
-    if (!this.isEnabled) {
-      return true;
+  private registerHotkeysWithListener(): boolean {
+    if (!this.keyListenerProcess?.stdin || this.keyListenerProcess.stdin.destroyed) {
+      return false;
     }
 
-    const ok = this.registerToggleHotkey(this.toggleHotkey);
-    if (!ok) return false;
+    const hotkeys = this.isEnabled
+      ? [this.toggleHotkey, this.holdToTranscribeHotkey]
+        .flatMap((hotkey) => expandRawHotkeyVariants(hotkey))
+        .filter((keys) => keys.length > 0)
+        .map((keys) => ({ keys }))
+      : [];
 
-    this.attachGlobalKeyListener();
+    const command: KeyListenerCommand = {
+      command: 'register_hotkeys',
+      hotkeys,
+    };
+
+    this.keyListenerProcess.stdin.write(`${JSON.stringify(command)}\n`);
     return true;
   }
 
+  private handleProcessEvent(event: KeyListenerEvent): void {
+    if (event.type === 'heartbeat_ping') {
+      this.lastHeartbeatReceived = Date.now();
+      return;
+    }
+
+    this.handleKeyEvent(event);
+  }
+
+  private startHeartbeatChecker(): void {
+    if (this.heartbeatCheckTimer) {
+      return;
+    }
+
+    this.lastHeartbeatReceived = Date.now();
+    this.heartbeatCheckTimer = setInterval(() => {
+      const elapsed = Date.now() - this.lastHeartbeatReceived;
+      if (elapsed > HEARTBEAT_TIMEOUT_MS) {
+        console.error(`[ShortcutManager] Key listener heartbeat timed out after ${elapsed}ms.`);
+        this.restartKeyListener();
+      }
+    }, HEARTBEAT_CHECK_INTERVAL_MS);
+  }
+
+  private stopHeartbeatChecker(): void {
+    if (!this.heartbeatCheckTimer) {
+      return;
+    }
+
+    clearInterval(this.heartbeatCheckTimer);
+    this.heartbeatCheckTimer = null;
+  }
+
+  private getProtectedHoldTokens(): string[] {
+    if (!(this.holdShortcutActive && this.isRecording && this.recordingSource === 'hold')) {
+      return [];
+    }
+
+    return hotkeyTokensFromAccelerator(this.holdToTranscribeHotkey);
+  }
+
+  private startStuckKeyChecker(): void {
+    if (this.stuckKeyCheckTimer) {
+      return;
+    }
+
+    this.stuckKeyCheckTimer = setInterval(() => {
+      const now = Date.now();
+      const protectedTokens = new Set(this.getProtectedHoldTokens());
+      let removedAny = false;
+
+      for (const [key, pressedAt] of this.keyPressTimestamps.entries()) {
+        if (now - pressedAt <= STUCK_KEY_TIMEOUT_MS) {
+          continue;
+        }
+
+        const token = hotkeyTokenFromGlobalKeyName(key);
+        if (token && protectedTokens.has(token)) {
+          continue;
+        }
+
+        this.keyPressTimestamps.delete(key);
+        this.rawPressedKeys.delete(key);
+        removedAny = true;
+      }
+
+      if (removedAny) {
+        this.recomputeShortcutState('keyUp');
+      }
+    }, STUCK_KEY_CHECK_INTERVAL_MS);
+  }
+
+  private stopStuckKeyChecker(): void {
+    if (!this.stuckKeyCheckTimer) {
+      return;
+    }
+
+    clearInterval(this.stuckKeyCheckTimer);
+    this.stuckKeyCheckTimer = null;
+  }
+
+  private cleanupProcessHandles(): void {
+    this.stdoutReader?.close();
+    this.stderrReader?.close();
+    this.stdoutReader = null;
+    this.stderrReader = null;
+    this.keyListenerProcess = null;
+  }
+
+  private stopKeyListener(): void {
+    this.stopHeartbeatChecker();
+    this.stopStuckKeyChecker();
+
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer);
+      this.restartTimer = null;
+    }
+
+    const processToStop = this.keyListenerProcess;
+    this.cleanupProcessHandles();
+    processToStop?.kill('SIGTERM');
+    this.clearPressedTokens();
+  }
+
+  private restartKeyListener(): void {
+    if (!this.keepProcessAlive) {
+      return;
+    }
+
+    this.stopKeyListener();
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null;
+      if (!this.keepProcessAlive) {
+        return;
+      }
+      this.startKeyListener();
+    }, 1000);
+  }
+
+  private startKeyListener(): boolean {
+    if (this.keyListenerProcess) {
+      return this.registerHotkeysWithListener();
+    }
+
+    const binaryPath = getNativeBinaryPath(KEY_LISTENER_BINARY);
+    if (!existsSync(binaryPath)) {
+      console.error(`[ShortcutManager] Missing key listener binary at ${binaryPath}`);
+      return false;
+    }
+
+    const child = spawn(binaryPath, [], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    this.keyListenerProcess = child;
+    this.stdoutReader = readline.createInterface({ input: child.stdout });
+    this.stderrReader = readline.createInterface({ input: child.stderr });
+
+    this.stdoutReader.on('line', (line) => {
+      try {
+        const event = JSON.parse(line) as KeyListenerEvent;
+        this.handleProcessEvent(event);
+      } catch (error) {
+        console.warn('[ShortcutManager] Failed to parse key listener output:', error);
+      }
+    });
+
+    this.stderrReader.on('line', (line) => {
+      console.info(`[ShortcutManager] ${line}`);
+    });
+
+    child.on('exit', (code, signal) => {
+      console.warn(`[ShortcutManager] Key listener exited (code=${code ?? 'null'}, signal=${signal ?? 'null'}).`);
+      this.cleanupProcessHandles();
+      this.clearPressedTokens();
+
+      if (this.keepProcessAlive) {
+        this.restartTimer = setTimeout(() => {
+          this.restartTimer = null;
+          this.startKeyListener();
+        }, 1000);
+      }
+    });
+
+    this.startHeartbeatChecker();
+    this.startStuckKeyChecker();
+    return this.registerHotkeysWithListener();
+  }
+
+  register(): boolean {
+    this.keepProcessAlive = true;
+    return this.startKeyListener();
+  }
+
   unregister(): void {
-    globalShortcut.unregister(this.toggleHotkey);
-    this.detachGlobalKeyListener();
+    this.keepProcessAlive = false;
+    this.stopKeyListener();
   }
 
   updateHotkeys(next: HotkeyUpdatePayload): boolean {
-    const previousToggleHotkey = this.toggleHotkey;
-    const previousHoldHotkey = this.holdToTranscribeHotkey;
-
     const hasToggleUpdate = typeof next.toggleHotkey === 'string';
     const hasHoldUpdate = typeof next.holdToTranscribeHotkey === 'string';
 
@@ -281,34 +499,18 @@ export class ShortcutManager {
     if (hasToggleUpdate && next.toggleHotkey) {
       this.toggleHotkey = next.toggleHotkey;
     }
+
     if (hasHoldUpdate && next.holdToTranscribeHotkey) {
       this.holdToTranscribeHotkey = next.holdToTranscribeHotkey;
     }
 
-    if (!this.isEnabled) {
-      const probe = globalShortcut.register(this.toggleHotkey, () => undefined);
-      if (probe) {
-        globalShortcut.unregister(this.toggleHotkey);
-        return true;
-      }
+    this.clearPressedTokens();
 
-      this.toggleHotkey = previousToggleHotkey;
-      this.holdToTranscribeHotkey = previousHoldHotkey;
-      return false;
-    }
-
-    globalShortcut.unregister(previousToggleHotkey);
-    this.detachGlobalKeyListener();
-
-    const registered = this.register();
-    if (registered) {
+    if (!this.keyListenerProcess) {
       return true;
     }
 
-    this.toggleHotkey = previousToggleHotkey;
-    this.holdToTranscribeHotkey = previousHoldHotkey;
-    this.register();
-    return false;
+    return this.registerHotkeysWithListener();
   }
 
   setEnabled(enabled: boolean): boolean {
@@ -317,12 +519,13 @@ export class ShortcutManager {
     }
 
     this.isEnabled = enabled;
-    if (!enabled) {
-      this.unregister();
-      return true;
+    this.clearPressedTokens();
+
+    if (!this.keyListenerProcess) {
+      return enabled ? this.register() : true;
     }
 
-    return this.register();
+    return this.registerHotkeysWithListener();
   }
 
   getHotkeys(): { toggleHotkey: string; holdToTranscribeHotkey: string } {
@@ -335,8 +538,7 @@ export class ShortcutManager {
   resetState(): void {
     this.isRecording = false;
     this.recordingSource = null;
-    this.toggleShortcutActive = false;
-    this.holdShortcutActive = false;
+    this.clearPressedTokens();
   }
 
   getIsRecording(): boolean {

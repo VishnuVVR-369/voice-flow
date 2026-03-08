@@ -1,4 +1,4 @@
-const MODIFIER_ORDER = ['Command', 'Control', 'Alt', 'Shift'] as const;
+const MODIFIER_ORDER = ['Command', 'Control', 'Alt', 'Shift', 'Fn'] as const;
 
 const MODIFIER_TOKENS = new Set<string>(MODIFIER_ORDER);
 
@@ -27,6 +27,11 @@ const CODE_TOKEN_MAP: Record<string, string> = {
 };
 
 const GLOBAL_KEY_TOKEN_MAP: Record<string, string> = {
+  COMMAND: 'Command',
+  CONTROL: 'Control',
+  ALT: 'Alt',
+  SHIFT: 'Shift',
+  FN: 'Fn',
   'LEFT META': 'Command',
   'RIGHT META': 'Command',
   'LEFT CTRL': 'Control',
@@ -35,27 +40,48 @@ const GLOBAL_KEY_TOKEN_MAP: Record<string, string> = {
   'RIGHT ALT': 'Alt',
   'LEFT SHIFT': 'Shift',
   'RIGHT SHIFT': 'Shift',
+  METALEFT: 'Command',
+  METARIGHT: 'Command',
+  CONTROLLEFT: 'Control',
+  CONTROLRIGHT: 'Control',
+  ALTGR: 'Alt',
+  SHIFTLEFT: 'Shift',
+  SHIFTRIGHT: 'Shift',
+  FUNCTION: 'Fn',
+  'UNKNOWN(179)': 'Fn',
   SPACE: 'Space',
   TAB: 'Tab',
   RETURN: 'Enter',
+  ENTER: 'Enter',
   ESCAPE: 'Escape',
   BACKSPACE: 'Backspace',
   DELETE: 'Delete',
   BACKTICK: '`',
+  BACKQUOTE: '`',
   MINUS: '-',
   EQUALS: '=',
+  EQUAL: '=',
   'SQUARE BRACKET OPEN': '[',
   'SQUARE BRACKET CLOSE': ']',
+  LEFTBRACKET: '[',
+  RIGHTBRACKET: ']',
   BACKSLASH: '\\',
+  INTLBACKSLASH: '\\',
   SEMICOLON: ';',
   QUOTE: '\'',
   COMMA: ',',
   DOT: '.',
+  PERIOD: '.',
   'FORWARD SLASH': '/',
+  SLASH: '/',
   'UP ARROW': 'Up',
   'DOWN ARROW': 'Down',
   'LEFT ARROW': 'Left',
   'RIGHT ARROW': 'Right',
+  UPARROW: 'Up',
+  DOWNARROW: 'Down',
+  LEFTARROW: 'Left',
+  RIGHTARROW: 'Right',
 };
 
 const DISPLAY_LABELS: Record<string, { darwin: string; default: string }> = {
@@ -63,6 +89,7 @@ const DISPLAY_LABELS: Record<string, { darwin: string; default: string }> = {
   Control: { darwin: '⌃', default: 'Ctrl' },
   Alt: { darwin: '⌥', default: 'Alt' },
   Shift: { darwin: '⇧', default: 'Shift' },
+  Fn: { darwin: 'fn', default: 'Fn' },
   Space: { darwin: 'Space', default: 'Space' },
   Escape: { darwin: 'Esc', default: 'Esc' },
   Enter: { darwin: 'Return', default: 'Enter' },
@@ -121,7 +148,12 @@ export function validateHotkeyTokens(tokens: string[]): string | null {
 
   if (!normalized.length) return 'Choose at least one key.';
   if (normalized.length > MAX_HOTKEY_TOKENS) return `Use at most ${MAX_HOTKEY_TOKENS} keys.`;
-  if (normalized.every(isModifierToken)) return 'Include at least one non-modifier key.';
+  if (normalized.every(isModifierToken)) {
+    const fnOnlyShortcut = normalized.length === 1 && normalized[0] === 'Fn';
+    if (!fnOnlyShortcut) {
+      return 'Include at least one non-modifier key.';
+    }
+  }
 
   const accelerator = hotkeyToAccelerator(normalized);
   if (RESERVED_SHORTCUTS.has(accelerator)) {
@@ -156,14 +188,22 @@ export function hotkeyTokenFromEvent(event: { key: string; code: string }): stri
 
 export function hotkeyTokenFromGlobalKeyName(keyName: string): string | null {
   const normalized = keyName.toUpperCase().trim();
+  const compact = normalized.replace(/[\s_-]+/g, '');
 
   if (normalized in GLOBAL_KEY_TOKEN_MAP) {
     return GLOBAL_KEY_TOKEN_MAP[normalized];
   }
 
+  if (compact in GLOBAL_KEY_TOKEN_MAP) {
+    return GLOBAL_KEY_TOKEN_MAP[compact];
+  }
+
   if (/^[A-Z]$/.test(normalized)) return normalized;
   if (/^[0-9]$/.test(normalized)) return normalized;
   if (/^F([1-9]|1[0-9]|2[0-4])$/.test(normalized)) return normalized;
+  if (/^KEY[A-Z]$/.test(compact)) return compact.slice(3);
+  if (/^NUM[0-9]$/.test(compact)) return compact.slice(3);
+  if (/^KP[0-9]$/.test(compact)) return compact.slice(2);
 
   return null;
 }

@@ -1,14 +1,14 @@
 module.exports = {
   packagerConfig: {
-    asar: {
-      unpack: '**/node_modules/node-global-key-listener/bin/**/*',
-    },
+    asar: true,
+    extraResource: ['assets', 'resources/binaries'],
     ignore: (file) => {
       if (!file) return false;
 
       if (file === '/.vite' || file.startsWith('/.vite/')) return false;
       if (file === '/package.json') return false;
       if (file === '/node_modules' || file.startsWith('/node_modules/')) return false;
+      if (file === '/resources' || file.startsWith('/resources/')) return false;
 
       return true;
     },

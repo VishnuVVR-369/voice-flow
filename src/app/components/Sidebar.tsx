@@ -70,7 +70,7 @@ const Sidebar: React.FC = () => {
       <div className="sidebar-fill" />
 
       <div className="shortcut-card">
-        <p className="shortcut-label">Global Shortcut</p>
+        <p className="shortcut-label">App Shortcut</p>
         <p className="shortcut-copy">Two modes: toggle recording or hold-to-record.</p>
 
         <div className="shortcut-stack">
