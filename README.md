@@ -1,11 +1,11 @@
 # VoiceFlow
 
-VoiceFlow is a macOS Electron tray app for fast voice-to-text capture. It records from a global shortcut, shows a floating live overlay, sends the captured audio to Groq Whisper for transcription, optionally polishes the text with a Groq chat model, pastes the result into the active app, and stores a local transcript history.
+VoiceFlow is a macOS Electron tray app for fast voice-to-text capture. It records from app-scoped shortcuts (while the app window is active), shows a floating live overlay, sends the captured audio to Groq Whisper for transcription, optionally polishes the text with a Groq chat model, pastes the result into the active app, and stores a local transcript history.
 
 ## What It Does
 
 - Runs as a tray-first desktop app with a separate dashboard window and floating overlay
-- Supports two global recording modes:
+- Supports two recording modes (while the app window is active):
   - Toggle recording with a shortcut press
   - Hold-to-record with a separate shortcut
 - Captures microphone audio in the renderer with an `AudioWorklet`, converts it to PCM16, and sends it to the main process
@@ -25,7 +25,6 @@ VoiceFlow is a macOS Electron tray app for fast voice-to-text capture. It record
 
 This project is built specifically around macOS behavior:
 
-- `node-global-key-listener` is used for hold-to-record key state tracking on macOS
 - text injection uses `osascript` and Accessibility permissions
 - active app/window/selected text context is captured through JXA (`osascript -l JavaScript`)
 - Electron Forge packaging is configured for `darwin` zip and DMG output
@@ -34,7 +33,7 @@ It may launch elsewhere, but the implemented workflow is clearly macOS-first.
 
 ## How The Flow Works
 
-1. A global shortcut starts recording.
+1. An app shortcut starts recording.
 2. The overlay renderer opens the microphone and streams PCM16 chunks to the main process.
 3. When recording stops, the main process builds a WAV file from buffered PCM audio.
 4. The WAV is sent to Groq's `/audio/transcriptions` API.
@@ -51,7 +50,6 @@ It may launch elsewhere, but the implemented workflow is clearly macOS-first.
 - Tailwind CSS 4
 - Zustand
 - `electron-store`
-- `node-global-key-listener`
 
 ## Project Structure
 

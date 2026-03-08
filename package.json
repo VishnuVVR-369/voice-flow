@@ -6,9 +6,10 @@
   "main": ".vite/build/main.js",
   "private": true,
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
+    "build:native:key-listener": "node scripts/build-native-key-listener.mjs",
+    "start": "npm run build:native:key-listener && electron-forge start",
+    "package": "npm run build:native:key-listener && electron-forge package",
+    "make": "npm run build:native:key-listener && electron-forge make",
     "lint": "eslint --ext .ts,.tsx .",
     "eval:stt:doctor": "node scripts/eval-stt-doctor.mjs",
     "eval:stt": "node scripts/eval-stt.mjs"
@@ -36,7 +37,6 @@
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.0",
     "electron-store": "^11.0.2",
-    "node-global-key-listener": "^0.3.0",
     "postcss": "^8.5.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

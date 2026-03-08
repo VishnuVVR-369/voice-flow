@@ -64,6 +64,10 @@ export class IPCHandler {
     this.pendingContext = captureCursorContext();
   }
 
+  setStatus(status: AppStatus): void {
+    this.sendStatus(status);
+  }
+
   private sendStatus(status: AppStatus): void {
     this.overlayWindow?.webContents.send(IPC_CHANNELS.STATUS_UPDATE, status);
     this.onStatusChange?.(status);
@@ -239,7 +243,7 @@ export class IPCHandler {
 
       const ok = this.shortcutManager.setEnabled(!isEditing);
       if (!ok) {
-        return { success: false, error: 'Failed to restore the global shortcut.' };
+        return { success: false, error: 'Failed to restore the shortcut listener.' };
       }
 
       return { success: true };

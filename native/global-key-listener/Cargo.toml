@@ -1,0 +1,18 @@
+[package]
+name = "global-key-listener"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dependencies.rdev]
+git = "https://github.com/heyito/rdev"
+branch = "main"
+features = ["unstable_grab"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.25"
+objc = "0.2"
