@@ -79,7 +79,7 @@ export class IPCHandler {
       this.overlayWindow.moveTop();
       this.overlayWindow.setIgnoreMouseEvents(false);
     } else {
-      this.overlayWindow.setIgnoreMouseEvents(true);
+      this.overlayWindow.setIgnoreMouseEvents(true, { forward: true });
     }
   }
 
@@ -125,7 +125,6 @@ export class IPCHandler {
       }
       this.sessionManager?.scheduleReWarm();
       this.sendStatus('idle');
-      this.overlayWindow?.hide();
     });
 
     // Handle settings
@@ -309,7 +308,6 @@ export class IPCHandler {
           this.sessionManager?.scheduleReWarm();
           this.sendStatus('error');
           setTimeout(() => {
-            this.overlayWindow?.hide();
             this.sendStatus('idle');
           }, 2000);
         });
@@ -362,7 +360,6 @@ export class IPCHandler {
           this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_ERROR, 'No speech detected');
           this.sendStatus('error');
           setTimeout(() => {
-            this.overlayWindow?.hide();
             this.sendStatus('idle');
           }, 2000);
           return;
@@ -430,7 +427,6 @@ export class IPCHandler {
         console.log(`[realtime pipeline: ${Date.now() - stopInitiatedAt}ms | flush: ${flushMs}ms | polish: ${polishMs}ms | inject: ${injectMs}ms]`);
 
         setTimeout(() => {
-          this.overlayWindow?.hide();
           this.sendStatus('idle');
         }, 1500);
       } catch (error) {
@@ -443,7 +439,6 @@ export class IPCHandler {
         this.sendStatus('error');
 
         setTimeout(() => {
-          this.overlayWindow?.hide();
           this.sendStatus('idle');
         }, 3000);
       }
