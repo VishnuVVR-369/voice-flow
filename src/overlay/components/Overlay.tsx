@@ -4,6 +4,7 @@ import { PcmAudioRecorder } from '../services/pcm-audio-recorder';
 import { soundEffects } from '../services/sound-effects';
 import { WaveformAnimation } from './WaveformAnimation';
 import { OVERLAY_IDLE_HEIGHT, OVERLAY_IDLE_WIDTH } from '../../shared/constants';
+import type { AppSettings, SessionMode } from '../../shared/types';
 
 const pcmRecorder = new PcmAudioRecorder();
 
@@ -17,8 +18,11 @@ const HARD_KILL_MS = 15 * 60 * 1000;
 
 const PILL_HEIGHT = 34;
 const ACTIVE_PILL_WIDTH = 176;
+const ASK_ACTIVE_PILL_WIDTH = 216;
 const TRANSCRIBING_PILL_WIDTH = 188;
+const ASK_TRANSCRIBING_PILL_WIDTH = 236;
 const DONE_PILL_WIDTH = 176;
+const ASK_DONE_PILL_WIDTH = 208;
 const ERROR_PILL_WIDTH = 280;
 const IDLE_WINDOW_HEIGHT = OVERLAY_IDLE_HEIGHT + 24;
 const TRANSCRIPT_PADDING = 24;
@@ -28,6 +32,7 @@ export const Overlay: React.FC = () => {
   const { status, setStatus, error, setError } = useAppStore();
   const [volumeWarning, setVolumeWarning] = useState<'none' | 'silence'>('none');
   const [transcriptLines, setTranscriptLines] = useState<string[]>([]);
+  const [sessionMode, setSessionMode] = useState<SessionMode>('dictation');
   const analyserRef = useRef<AnalyserNode | null>(null);
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hardKillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,6 +41,7 @@ export const Overlay: React.FC = () => {
   const isStartingRef = useRef<boolean>(false);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
   const transcriptCardRef = useRef<HTMLDivElement | null>(null);
+  const statusRef = useRef(status);
 
   const handleStartRecordingRef = useRef<typeof handleStartRecording | undefined>(undefined);
   const handleStopRecordingRef = useRef<typeof handleStopRecording | undefined>(undefined);
@@ -71,18 +77,18 @@ export const Overlay: React.FC = () => {
     }
 
     const width = nextStatus === 'recording'
-      ? ACTIVE_PILL_WIDTH
+      ? (sessionMode === 'ask' ? ASK_ACTIVE_PILL_WIDTH : ACTIVE_PILL_WIDTH)
       : nextStatus === 'transcribing'
-        ? TRANSCRIBING_PILL_WIDTH
+        ? (sessionMode === 'ask' ? ASK_TRANSCRIBING_PILL_WIDTH : TRANSCRIBING_PILL_WIDTH)
         : nextStatus === 'done'
-          ? DONE_PILL_WIDTH
+          ? (sessionMode === 'ask' ? ASK_DONE_PILL_WIDTH : DONE_PILL_WIDTH)
           : nextStatus === 'error'
             ? ERROR_PILL_WIDTH
             : OVERLAY_IDLE_WIDTH;
 
     const height = nextStatus === 'idle' ? IDLE_WINDOW_HEIGHT : PILL_HEIGHT + 24;
     window.electronAPI.realtimeResize(width, height);
-  }, []);
+  }, [sessionMode]);
 
   const handleCancelRecording = useCallback(async () => {
     rlog('[Cancel] Cancelling recording...');
@@ -139,6 +145,7 @@ export const Overlay: React.FC = () => {
     try {
       const settings = await window.electronAPI.getSettings();
       const deviceId = settings.audioInputDeviceId || undefined;
+      setSessionMode(settings.defaultMode);
 
       rlog(`[Start] deviceId="${settings.audioInputDeviceId || '(default)'}"`);
 
@@ -202,6 +209,10 @@ export const Overlay: React.FC = () => {
   }, [setStatus, setError, handleStopRecording]);
 
   useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
     handleStartRecordingRef.current = handleStartRecording;
     handleStopRecordingRef.current = handleStopRecording;
     handleCancelRecordingRef.current = handleCancelRecording;
@@ -249,6 +260,21 @@ export const Overlay: React.FC = () => {
   }, [status]);
 
   useEffect(() => {
+    const syncMode = (settings: AppSettings) => {
+      if (statusRef.current === 'idle') {
+        setSessionMode(settings.defaultMode);
+      }
+    };
+
+    window.electronAPI.getSettings().then(syncMode).catch((err) => {
+      console.error('[Overlay] Failed to load settings:', err);
+    });
+
+    const dispose = window.electronAPI.onSettingsUpdated(syncMode);
+    return dispose;
+  }, []);
+
+  useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     requestOverlayResize(status, transcriptLines);
   }, [status, transcriptLines, requestOverlayResize]);
@@ -291,6 +317,14 @@ export const Overlay: React.FC = () => {
 
   const fullTranscript = transcriptLines.join(' ');
   const hasTranscript = fullTranscript.length > 0;
+  const modeLabel = sessionMode === 'ask' ? 'Ask' : 'Dictation';
+  const recordingText = volumeWarning === 'silence'
+    ? 'No input'
+    : sessionMode === 'ask'
+      ? 'Listening for instruction'
+      : 'Listening';
+  const transcribingText = sessionMode === 'ask' ? 'Transforming selection...' : 'Polishing transcript...';
+  const doneText = sessionMode === 'ask' ? 'Selection replaced' : 'Pasted successfully';
   const overlayPillClassName = [
     'overlay-pill',
     `overlay-pill--${status}`,
@@ -316,13 +350,14 @@ export const Overlay: React.FC = () => {
           <div className={`pill-layer pill-layer--idle ${status === 'idle' ? 'pill-layer--active' : ''}`} />
 
           <div className={`pill-layer ${status === 'recording' ? 'pill-layer--active' : ''}`}>
+            <span className="overlay-mode-pill">{modeLabel}</span>
             <span className="overlay-status-dot" />
             <WaveformAnimation
               analyser={status === 'recording' ? analyserRef.current : null}
               isActive={status === 'recording'}
             />
             <span className={`overlay-text${volumeWarning === 'silence' ? ' overlay-warning' : ''}`}>
-              {volumeWarning === 'silence' ? 'No input' : 'Listening'}
+              {recordingText}
             </span>
             <button
               className="cancel-button"
@@ -338,20 +373,23 @@ export const Overlay: React.FC = () => {
           </div>
 
           <div className={`pill-layer ${status === 'transcribing' ? 'pill-layer--active' : ''}`}>
+            <span className="overlay-mode-pill">{modeLabel}</span>
             <span className="processing-dots" aria-hidden="true">
               <span />
               <span />
               <span />
             </span>
-            <span className="overlay-text">Polishing transcript...</span>
+            <span className="overlay-text">{transcribingText}</span>
           </div>
 
           <div className={`pill-layer ${status === 'done' ? 'pill-layer--active' : ''}`}>
+            <span className="overlay-mode-pill">{modeLabel}</span>
             <span className="status-badge status-badge--done" aria-hidden="true" />
-            <span className="overlay-text overlay-done">Pasted successfully</span>
+            <span className="overlay-text overlay-done">{doneText}</span>
           </div>
 
           <div className={`pill-layer ${status === 'error' ? 'pill-layer--active' : ''}`}>
+            <span className="overlay-mode-pill">{modeLabel}</span>
             <span className="status-badge status-badge--error" aria-hidden="true" />
             <span className="overlay-text overlay-error">{error || 'Error'}</span>
           </div>

@@ -14,8 +14,12 @@ export class HistoryService {
   }
 
   async save(record: {
+    mode: 'dictation' | 'ask';
     original_text: string;
     optimized_text: string | null;
+    command_text: string | null;
+    source_text: string | null;
+    final_text: string | null;
     app_context: string | null;
     duration_seconds: number | null;
   }): Promise<void> {
@@ -24,8 +28,12 @@ export class HistoryService {
 
     localHistory.save({
       id,
+      mode: record.mode,
       original_text: record.original_text,
       optimized_text: record.optimized_text,
+      command_text: record.command_text,
+      source_text: record.source_text,
+      final_text: record.final_text,
       app_context: record.app_context,
       duration_seconds: record.duration_seconds,
       created_at: createdAt,
@@ -37,8 +45,12 @@ export class HistoryService {
     return {
       data: result.data.map(r => ({
         id: r.id,
+        mode: r.mode,
         original_text: r.original_text,
         optimized_text: r.optimized_text,
+        command_text: r.command_text,
+        source_text: r.source_text,
+        final_text: r.final_text,
         app_context: r.app_context,
         language: null,
         duration_seconds: r.duration_seconds,

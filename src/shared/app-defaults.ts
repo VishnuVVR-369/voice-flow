@@ -1,4 +1,4 @@
-import type { PolishProvider } from './types';
+import type { AskPasteBehavior, PolishProvider, SessionMode } from './types';
 
 export const APP_DEFAULTS = {
   hotkey: '`',
@@ -8,4 +8,6 @@ export const APP_DEFAULTS = {
   polishProvider: 'groq' as PolishProvider,
   audioInputDeviceId: '',
   groqApiKey: '',
+  defaultMode: 'dictation' as SessionMode,
+  askPasteBehavior: 'replace-selection' as AskPasteBehavior,
 } as const;

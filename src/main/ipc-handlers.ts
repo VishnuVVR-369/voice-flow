@@ -5,12 +5,13 @@ import { RealtimeTranscriptionService, type RealtimeTranscriptionResult } from '
 import { TextInjector } from './text-injector';
 import { getConfig, setConfig } from './config-store';
 import { resizeOverlay, showOverlayWindow } from './overlay-window';
-import type { AppStatus, CursorContext } from '../shared/types';
+import type { AppStatus, AskPasteBehavior, CursorContext, SessionMode } from '../shared/types';
 import { historyService, dictionaryService } from './service-ipc';
 import { captureCursorContext } from './context-capture';
 import type { RealtimeSessionManager } from './realtime-session-manager';
 import type { ShortcutManager } from './shortcut-manager';
 import { normalizeHotkeyForStorage, validateHotkeyTokens, hotkeyTokensFromAccelerator } from '../shared/hotkeys';
+import { transformSelectedText } from './ask-service';
 
 export class IPCHandler {
   private transcriptionService: TranscriptionService;
@@ -23,6 +24,8 @@ export class IPCHandler {
   private isStartingRealtime = false;
   private recordingStartedAt: number | null = null;
   private pendingContext: Promise<CursorContext | null> = Promise.resolve(null);
+  private activeSessionMode: SessionMode = 'dictation';
+  private activeAskPasteBehavior: AskPasteBehavior = 'replace-selection';
   private sessionManager: RealtimeSessionManager | null = null;
   private shortcutManager: ShortcutManager | null = null;
 
@@ -60,7 +63,10 @@ export class IPCHandler {
   }
 
   markRecordingStarted(): void {
+    const config = getConfig();
     this.recordingStartedAt = Date.now();
+    this.activeSessionMode = config.defaultMode;
+    this.activeAskPasteBehavior = config.askPasteBehavior;
     this.pendingContext = captureCursorContext();
   }
 
@@ -367,6 +373,8 @@ export class IPCHandler {
         const config = getConfig();
         const dictionaryWords = dictionaryService.getAllWords();
         const context = await this.pendingContext;
+        const sessionMode = this.activeSessionMode;
+        const askPasteBehavior = this.activeAskPasteBehavior;
 
         if (dictionaryWords?.length && this.isDictionaryHallucination(rawText, dictionaryWords)) {
           console.warn(`[IPC] Final transcript is dictionary-heavy, but accepted: "${rawText}"`);
@@ -383,17 +391,34 @@ export class IPCHandler {
           })}`);
         }
 
-        // Polish the final text
         let finalText = rawText;
         let polishedText: string | null = null;
-        let polishMs = 0;
+        let sourceText: string | null = null;
+        let commandText: string | null = null;
+        let transformMs = 0;
 
-        if (config.enablePolish && rawText.trim()) {
+        if (sessionMode === 'ask') {
+          try {
+            console.log(`[IPC] Ask input: instruction="${rawText}" | selected=${context?.selectedText.length ?? 0} chars`);
+            const transformStart = Date.now();
+            const result = await transformSelectedText(config.groqApiKey, rawText, context);
+            transformMs = Date.now() - transformStart;
+            finalText = result.transformedText;
+            polishedText = finalText;
+            commandText = rawText;
+            sourceText = context?.selectedText ?? null;
+            console.log(`[IPC] Ask output: "${finalText}"`);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Ask mode failed';
+            console.error('[IPC] Ask transform failed:', message);
+            throw new Error(message);
+          }
+        } else if (config.enablePolish && rawText.trim()) {
           try {
             console.log(`[IPC] Polish input: "${rawText}"`);
             const polishStart = Date.now();
             const result = await this.transcriptionService.polishOnly(rawText, context);
-            polishMs = Date.now() - polishStart;
+            transformMs = Date.now() - polishStart;
             polishedText = result.polishedText;
             finalText = polishedText ?? rawText;
             console.log(`[IPC] Polish output: "${finalText}"${polishedText ? '' : ' (fallback to raw)'}`);
@@ -404,7 +429,11 @@ export class IPCHandler {
 
         // Inject text + save to history
         const injectStart = Date.now();
-        await this.textInjector.inject(finalText, context);
+        await this.textInjector.inject(
+          finalText,
+          context,
+          sessionMode === 'ask' ? { pasteBehavior: askPasteBehavior } : {},
+        );
         const injectMs = Date.now() - injectStart;
 
         const durationSeconds = this.recordingStartedAt
@@ -413,8 +442,12 @@ export class IPCHandler {
         this.recordingStartedAt = null;
 
         historyService.save({
+          mode: sessionMode,
           original_text: rawText,
           optimized_text: polishedText,
+          command_text: commandText,
+          source_text: sourceText,
+          final_text: finalText,
           app_context: context ? JSON.stringify(context) : null,
           duration_seconds: durationSeconds,
         }).then(() => {
@@ -423,7 +456,7 @@ export class IPCHandler {
 
         this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_RESULT, finalText);
         this.sendStatus('done');
-        console.log(`[realtime pipeline: ${Date.now() - stopInitiatedAt}ms | flush: ${flushMs}ms | polish: ${polishMs}ms | inject: ${injectMs}ms]`);
+        console.log(`[realtime pipeline: ${Date.now() - stopInitiatedAt}ms | flush: ${flushMs}ms | mode=${sessionMode} | transform: ${transformMs}ms | inject: ${injectMs}ms]`);
 
         this.scheduleIdleStatus(1500);
       } catch (error) {

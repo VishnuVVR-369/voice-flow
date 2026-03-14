@@ -1,11 +1,12 @@
 import { clipboard } from 'electron';
 import { execFile } from 'node:child_process';
-import type { CursorContext } from '../shared/types';
+import type { AskPasteBehavior, CursorContext } from '../shared/types';
 
 const MIN_INJECT_INTERVAL_MS = 500;
 const DEDUP_WINDOW_MS = 5000;
 const APP_RESTORE_SETTLE_MS = 120;
 const PASTE_DELAY_MS = 50;
+const CURSOR_COLLAPSE_SETTLE_MS = 40;
 
 export class TextInjector {
   private lastInjectTime = 0;
@@ -13,7 +14,11 @@ export class TextInjector {
   private lastInjectedText = '';
   private lastInjectedAt = 0;
 
-  async inject(text: string, context: CursorContext | null = null): Promise<void> {
+  async inject(
+    text: string,
+    context: CursorContext | null = null,
+    options: { pasteBehavior?: AskPasteBehavior } = {},
+  ): Promise<void> {
     const now = Date.now();
 
     // Guard 1: concurrent / rapid-fire
@@ -39,6 +44,9 @@ export class TextInjector {
 
     try {
       await this.restoreTargetApp(context);
+      if (options.pasteBehavior === 'paste-at-cursor' && context?.selectedText) {
+        await this.collapseSelectionToCursor();
+      }
       await this.simulatePaste();
       this.lastInjectedText = text;
       this.lastInjectedAt = Date.now();
@@ -94,6 +102,29 @@ export class TextInjector {
       } else {
         resolve();
       }
+    });
+  }
+
+  private collapseSelectionToCursor(): Promise<void> {
+    return new Promise((resolve) => {
+      if (process.platform !== 'darwin') {
+        resolve();
+        return;
+      }
+
+      execFile(
+        'osascript',
+        ['-e', 'tell application "System Events" to key code 124'],
+        (error) => {
+          if (error) {
+            console.warn('[TextInjector] Failed to collapse selection before paste:', error.message);
+            resolve();
+            return;
+          }
+
+          setTimeout(resolve, CURSOR_COLLAPSE_SETTLE_MS);
+        }
+      );
     });
   }
 }

@@ -1,6 +1,6 @@
 import electronStore from 'electron-store';
 import { APP_DEFAULTS } from '../shared/app-defaults';
-import type { PolishProvider } from '../shared/types';
+import type { AskPasteBehavior, PolishProvider, SessionMode } from '../shared/types';
 
 interface StoreSchema {
   hotkey: string;
@@ -11,6 +11,8 @@ interface StoreSchema {
   polishProvider: PolishProvider;
   audioInputDeviceId: string;
   groqApiKey: string;
+  defaultMode: SessionMode;
+  askPasteBehavior: AskPasteBehavior;
 }
 
 type AppConfig = Omit<StoreSchema, 'languageDefaultMigrated'>;
@@ -35,6 +37,8 @@ const store = new StoreConstructor<StoreSchema>({
     polishProvider: APP_DEFAULTS.polishProvider,
     audioInputDeviceId: APP_DEFAULTS.audioInputDeviceId,
     groqApiKey: APP_DEFAULTS.groqApiKey,
+    defaultMode: APP_DEFAULTS.defaultMode,
+    askPasteBehavior: APP_DEFAULTS.askPasteBehavior,
   },
 });
 
@@ -55,6 +59,8 @@ export function getConfig(): AppConfig {
     polishProvider: store.get('polishProvider'),
     audioInputDeviceId: store.get('audioInputDeviceId'),
     groqApiKey: store.get('groqApiKey'),
+    defaultMode: store.get('defaultMode'),
+    askPasteBehavior: store.get('askPasteBehavior'),
   };
 }
 

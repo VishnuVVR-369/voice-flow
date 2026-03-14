@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import type { SessionMode, TranscriptionRecord } from '../../shared/types';
 
 interface HistoryEntry {
   id: string;
   time: string;
-  text: string;
-  type: 'dictation' | 'ask';
+  mode: SessionMode;
+  outputText: string;
+  rawText: string;
+  commandText: string | null;
+  sourceText: string | null;
 }
 
 interface HistoryGroup {
@@ -30,12 +34,7 @@ const HistoryPage: React.FC = () => {
 
       for (const record of result.data) {
         const date = new Date(record.created_at);
-        const entry: HistoryEntry = {
-          id: record.id,
-          time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          text: record.optimized_text || record.original_text,
-          type: 'dictation',
-        };
+        const entry = mapRecordToEntry(record, date);
 
         if (date.toDateString() === today.toDateString()) {
           todayEntries.push(entry);
@@ -70,8 +69,8 @@ const HistoryPage: React.FC = () => {
       ...group,
       entries: group.entries.filter((entry) => {
         if (activeTab === 'all') return true;
-        if (activeTab === 'dictations') return entry.type === 'dictation';
-        return entry.type === 'ask';
+        if (activeTab === 'dictations') return entry.mode === 'dictation';
+        return entry.mode === 'ask';
       }),
     }))
     .filter((group) => group.entries.length > 0);
@@ -123,8 +122,30 @@ const HistoryPage: React.FC = () => {
               <div className="history-group-items">
                 {group.entries.map((entry) => (
                   <article key={entry.id} className="history-entry">
-                    <div className="history-entry-time">{entry.time}</div>
-                    <p className="history-entry-text">{entry.text}</p>
+                    <div className="history-entry-head">
+                      <div className="history-entry-time">{entry.time}</div>
+                      <span className={`history-mode-pill history-mode-pill--${entry.mode}`}>
+                        {entry.mode === 'ask' ? 'Ask' : 'Dictation'}
+                      </span>
+                    </div>
+                    <p className="history-entry-text">{entry.outputText}</p>
+                    {entry.mode === 'ask' ? (
+                      <div className="history-detail-grid">
+                        <div className="history-detail-card">
+                          <div className="history-detail-label">Instruction</div>
+                          <p className="history-detail-value">{entry.commandText || 'Unavailable'}</p>
+                        </div>
+                        <div className="history-detail-card">
+                          <div className="history-detail-label">Selected text</div>
+                          <p className="history-detail-value">{entry.sourceText || 'Unavailable'}</p>
+                        </div>
+                      </div>
+                    ) : entry.rawText !== entry.outputText ? (
+                      <div className="history-detail-card history-detail-card-compact">
+                        <div className="history-detail-label">Original transcript</div>
+                        <p className="history-detail-value">{entry.rawText}</p>
+                      </div>
+                    ) : null}
                   </article>
                 ))}
               </div>
@@ -135,5 +156,17 @@ const HistoryPage: React.FC = () => {
     </div>
   );
 };
+
+function mapRecordToEntry(record: TranscriptionRecord, date: Date): HistoryEntry {
+  return {
+    id: record.id,
+    time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    mode: record.mode,
+    outputText: record.final_text || record.optimized_text || record.original_text,
+    rawText: record.original_text,
+    commandText: record.command_text,
+    sourceText: record.source_text,
+  };
+}
 
 export default HistoryPage;

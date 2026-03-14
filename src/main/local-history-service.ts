@@ -1,17 +1,23 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { TranscriptionStatsResult } from '../shared/types';
+import type { SessionMode, TranscriptionStatsResult } from '../shared/types';
 
 export interface LocalHistoryRecord {
   id: string;
+  mode: SessionMode;
   original_text: string;
   optimized_text: string | null;
+  command_text: string | null;
+  source_text: string | null;
+  final_text: string | null;
   app_context: string | null;
   duration_seconds: number | null;
   word_count: number;
   created_at: string;
 }
+
+type ParsedHistoryRecord = Partial<LocalHistoryRecord> & Pick<LocalHistoryRecord, 'id' | 'original_text' | 'created_at'>;
 
 export class LocalHistoryService {
   private historyDir: string;
@@ -50,12 +56,33 @@ export class LocalHistoryService {
 
   save(record: Omit<LocalHistoryRecord, 'word_count'>): LocalHistoryRecord {
     this.ensureDir();
-    const text = record.optimized_text || record.original_text;
+    const text = record.final_text || record.optimized_text || record.original_text;
     const wordCount = LocalHistoryService.countWords(text);
     const fullRecord: LocalHistoryRecord = { ...record, word_count: wordCount };
     const filePath = path.join(this.historyDir, `${record.id}.json`);
     fs.writeFileSync(filePath, JSON.stringify(fullRecord, null, 2), 'utf-8');
     return fullRecord;
+  }
+
+  private normalizeRecord(record: ParsedHistoryRecord): LocalHistoryRecord {
+    const finalText = record.final_text ?? record.optimized_text ?? record.original_text;
+    const wordCount = typeof record.word_count === 'number'
+      ? record.word_count
+      : LocalHistoryService.countWords(finalText);
+
+    return {
+      id: record.id,
+      mode: record.mode ?? 'dictation',
+      original_text: record.original_text,
+      optimized_text: record.optimized_text ?? null,
+      command_text: record.command_text ?? null,
+      source_text: record.source_text ?? null,
+      final_text: finalText,
+      app_context: record.app_context ?? null,
+      duration_seconds: typeof record.duration_seconds === 'number' ? record.duration_seconds : null,
+      word_count: wordCount,
+      created_at: record.created_at,
+    };
   }
 
   list(page: number, pageSize: number): { data: LocalHistoryRecord[]; total: number } {
@@ -68,7 +95,7 @@ export class LocalHistoryService {
     for (const file of files) {
       try {
         const content = fs.readFileSync(path.join(this.historyDir, file), 'utf-8');
-        const record = JSON.parse(content);
+        const record = this.normalizeRecord(JSON.parse(content) as ParsedHistoryRecord);
         allRecords.push(record);
       } catch {
         // skip unreadable files
@@ -95,7 +122,7 @@ export class LocalHistoryService {
     const filePath = path.join(this.historyDir, `${id}.json`);
     if (!fs.existsSync(filePath)) return null;
     try {
-      return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      return this.normalizeRecord(JSON.parse(fs.readFileSync(filePath, 'utf-8')) as ParsedHistoryRecord);
     } catch {
       return null;
     }
@@ -113,7 +140,7 @@ export class LocalHistoryService {
     for (const file of files) {
       try {
         const content = fs.readFileSync(path.join(this.historyDir, file), 'utf-8');
-        const record: LocalHistoryRecord = JSON.parse(content);
+        const record = this.normalizeRecord(JSON.parse(content) as ParsedHistoryRecord);
         totalWords += record.word_count || 0;
         totalCount += 1;
         totalDurationSeconds += record.duration_seconds || 0;

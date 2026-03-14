@@ -1,6 +1,8 @@
 export type AppStatus = 'idle' | 'recording' | 'transcribing' | 'done' | 'error';
 
 export type PolishProvider = 'groq';
+export type SessionMode = 'dictation' | 'ask';
+export type AskPasteBehavior = 'replace-selection' | 'paste-at-cursor';
 
 export interface CursorContext {
   appName: string;
@@ -17,6 +19,8 @@ export interface AppSettings {
   polishProvider: PolishProvider; // Which provider to use for polish
   audioInputDeviceId: string; // Selected mic device ID; empty string = system default
   groqApiKey: string; // User's Groq API key (legacy field name kept for compatibility)
+  defaultMode: SessionMode;
+  askPasteBehavior: AskPasteBehavior;
 }
 
 // Dictionary types
@@ -29,8 +33,12 @@ export interface DictionaryWord {
 // History types
 export interface TranscriptionRecord {
   id: string;
+  mode: SessionMode;
   original_text: string;
   optimized_text: string | null;
+  command_text: string | null;
+  source_text: string | null;
+  final_text: string | null;
   app_context: string | null;
   language: string | null;
   duration_seconds: number | null;

@@ -10,6 +10,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   polishProvider: APP_DEFAULTS.polishProvider,
   audioInputDeviceId: APP_DEFAULTS.audioInputDeviceId,
   groqApiKey: APP_DEFAULTS.groqApiKey,
+  defaultMode: APP_DEFAULTS.defaultMode,
+  askPasteBehavior: APP_DEFAULTS.askPasteBehavior,
 };
 
 export function useAppSettings(): AppSettings {

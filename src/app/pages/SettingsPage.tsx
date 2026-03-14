@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import HotkeyEditor from '../components/HotkeyEditor';
 import { useAppSettings } from '../hooks/useAppSettings';
+import type { AskPasteBehavior, SessionMode } from '../../shared/types';
 
 interface AudioDevice {
   deviceId: string;
@@ -16,6 +17,8 @@ const SettingsPage: React.FC = () => {
   const [toggleHotkey, setToggleHotkey] = useState('`');
   const [holdHotkey, setHoldHotkey] = useState('Shift+Space');
   const [transcriptionLanguage, setTranscriptionLanguage] = useState('en');
+  const [defaultMode, setDefaultMode] = useState<SessionMode>('dictation');
+  const [askPasteBehavior, setAskPasteBehavior] = useState<AskPasteBehavior>('replace-selection');
   const settings = useAppSettings();
 
   const refreshDevices = async () => {
@@ -40,6 +43,8 @@ const SettingsPage: React.FC = () => {
     setEnablePolish(settings.enablePolish);
     setApiKey(settings.groqApiKey || '');
     setTranscriptionLanguage(settings.language === '' ? '' : (settings.language || 'en'));
+    setDefaultMode(settings.defaultMode);
+    setAskPasteBehavior(settings.askPasteBehavior);
   }, [settings]);
 
   useEffect(() => {
@@ -75,6 +80,17 @@ const SettingsPage: React.FC = () => {
     const value = e.target.value;
     setApiKey(value);
     window.electronAPI.setSettings({ groqApiKey: value });
+  };
+
+  const handleDefaultModeChange = (mode: SessionMode) => {
+    setDefaultMode(mode);
+    window.electronAPI.setSettings({ defaultMode: mode });
+  };
+
+  const handleAskPasteBehaviorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value as AskPasteBehavior;
+    setAskPasteBehavior(value);
+    window.electronAPI.setSettings({ askPasteBehavior: value });
   };
 
   const handleToggleHotkeyChange = async (value: string) => {
@@ -170,6 +186,42 @@ const SettingsPage: React.FC = () => {
         <select value={transcriptionLanguage} onChange={handleLanguageChange} className="settings-select">
           <option value="en">English (Recommended)</option>
           <option value="">Auto Detect</option>
+        </select>
+      </section>
+
+      <section className="settings-block">
+        <div className="settings-head">
+          <h2 className="settings-title">Session Mode</h2>
+          <p className="settings-copy">
+            Dictation pastes your spoken words. Ask mode rewrites selected text using your spoken instruction.
+          </p>
+        </div>
+        <div className="segmented">
+          <button
+            onClick={() => handleDefaultModeChange('dictation')}
+            className={`segmented-btn ${defaultMode === 'dictation' ? 'segmented-btn-active' : ''}`}
+          >
+            Dictation
+          </button>
+          <button
+            onClick={() => handleDefaultModeChange('ask')}
+            className={`segmented-btn ${defaultMode === 'ask' ? 'segmented-btn-active' : ''}`}
+          >
+            Ask
+          </button>
+        </div>
+      </section>
+
+      <section className="settings-block">
+        <div className="settings-head">
+          <h2 className="settings-title">Ask Paste Behavior</h2>
+          <p className="settings-copy">
+            Choose whether Ask mode replaces the current selection or collapses the selection and pastes at the cursor.
+          </p>
+        </div>
+        <select value={askPasteBehavior} onChange={handleAskPasteBehaviorChange} className="settings-select">
+          <option value="replace-selection">Replace selection</option>
+          <option value="paste-at-cursor">Paste at cursor</option>
         </select>
       </section>
 
