@@ -31,6 +31,20 @@ export interface DictionaryWord {
 }
 
 // History types
+export interface HistoryDiagnosticsPass {
+  score: number;
+  reasons: string[];
+  textLength: number;
+}
+
+export interface HistoryDiagnostics {
+  strategyVersion?: string;
+  selectedPass?: string;
+  passA?: HistoryDiagnosticsPass;
+  passB?: HistoryDiagnosticsPass;
+  [key: string]: unknown;
+}
+
 export interface TranscriptionRecord {
   id: string;
   mode: SessionMode;
@@ -38,8 +52,12 @@ export interface TranscriptionRecord {
   optimized_text: string | null;
   command_text: string | null;
   source_text: string | null;
-  final_text: string | null;
+  final_text: string;
   app_context: string | null;
+  detected_language: string | null;
+  app_name: string | null;
+  window_title: string | null;
+  diagnostics: HistoryDiagnostics | null;
   language: string | null;
   duration_seconds: number | null;
   created_at: string;
@@ -52,6 +70,18 @@ export interface HistoryListResult {
 
 export interface HistoryDeleteResult {
   success: boolean;
+  error?: string;
+}
+
+export interface HistoryReinjectResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface HistoryExportResult {
+  success: boolean;
+  canceled?: boolean;
+  filePath?: string;
   error?: string;
 }
 
@@ -96,7 +126,11 @@ export interface ElectronAPI {
 
   // History
   historyList: (page: number, pageSize: number) => Promise<HistoryListResult>;
+  historyGet: (id: string) => Promise<TranscriptionRecord | null>;
   historyDelete: (id: string) => Promise<HistoryDeleteResult>;
+  historyReinject: (id: string) => Promise<HistoryReinjectResult>;
+  historyExportOne: (id: string) => Promise<HistoryExportResult>;
+  historyExportAll: () => Promise<HistoryExportResult>;
   historyGetDir: () => Promise<string>;
   historySetDir: (dir: string) => Promise<{ success: boolean; error?: string }>;
 

@@ -65,8 +65,16 @@ const electronAPI: ElectronAPI = {
   // History
   historyList: (page: number, pageSize: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.HISTORY_LIST, { page, pageSize }),
+  historyGet: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, { id }),
   historyDelete: (id: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.HISTORY_DELETE, { id }),
+  historyReinject: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.HISTORY_REINJECT, { id }),
+  historyExportOne: (id: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.HISTORY_EXPORT_ONE, { id }),
+  historyExportAll: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.HISTORY_EXPORT_ALL),
   historyGetDir: () =>
     ipcRenderer.invoke(IPC_CHANNELS.HISTORY_GET_DIR),
   historySetDir: (dir: string) =>

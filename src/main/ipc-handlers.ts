@@ -449,6 +449,10 @@ export class IPCHandler {
           source_text: sourceText,
           final_text: finalText,
           app_context: context ? JSON.stringify(context) : null,
+          detected_language: transcriptResult.detectedLanguage || null,
+          app_name: context?.appName || null,
+          window_title: context?.windowTitle || null,
+          diagnostics: transcriptResult.diagnostics ?? null,
           duration_seconds: durationSeconds,
         }).then(() => {
           this.getMainWindow?.()?.webContents.send(IPC_CHANNELS.HISTORY_UPDATED);

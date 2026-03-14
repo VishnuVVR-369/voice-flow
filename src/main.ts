@@ -93,7 +93,7 @@ function initApp(): void {
     trayManager?.updateMenu('transcribing');
   });
   ipcHandler.register();
-  registerServiceIPC();
+  registerServiceIPC(textInjector);
 
   sessionManager.warmUp();
 

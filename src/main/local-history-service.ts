@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { SessionMode, TranscriptionStatsResult } from '../shared/types';
+import type { CursorContext, HistoryDiagnostics, SessionMode, TranscriptionStatsResult } from '../shared/types';
 
 export interface LocalHistoryRecord {
   id: string;
@@ -10,14 +10,20 @@ export interface LocalHistoryRecord {
   optimized_text: string | null;
   command_text: string | null;
   source_text: string | null;
-  final_text: string | null;
+  final_text: string;
   app_context: string | null;
+  detected_language: string | null;
+  app_name: string | null;
+  window_title: string | null;
+  diagnostics: HistoryDiagnostics | null;
   duration_seconds: number | null;
   word_count: number;
   created_at: string;
 }
 
-type ParsedHistoryRecord = Partial<LocalHistoryRecord> & Pick<LocalHistoryRecord, 'id' | 'original_text' | 'created_at'>;
+type ParsedHistoryRecord = Partial<LocalHistoryRecord> & Pick<LocalHistoryRecord, 'id' | 'original_text' | 'created_at'> & {
+  language?: string | null;
+};
 
 export class LocalHistoryService {
   private historyDir: string;
@@ -56,16 +62,45 @@ export class LocalHistoryService {
 
   save(record: Omit<LocalHistoryRecord, 'word_count'>): LocalHistoryRecord {
     this.ensureDir();
-    const text = record.final_text || record.optimized_text || record.original_text;
-    const wordCount = LocalHistoryService.countWords(text);
-    const fullRecord: LocalHistoryRecord = { ...record, word_count: wordCount };
+    const fullRecord = this.normalizeRecord(record);
     const filePath = path.join(this.historyDir, `${record.id}.json`);
     fs.writeFileSync(filePath, JSON.stringify(fullRecord, null, 2), 'utf-8');
     return fullRecord;
   }
 
+  private parseAppContext(rawContext: string | null | undefined): CursorContext | null {
+    if (!rawContext) {
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(rawContext) as Partial<CursorContext>;
+      if (!parsed || typeof parsed !== 'object') {
+        return null;
+      }
+
+      return {
+        appName: typeof parsed.appName === 'string' ? parsed.appName : '',
+        windowTitle: typeof parsed.windowTitle === 'string' ? parsed.windowTitle : '',
+        selectedText: typeof parsed.selectedText === 'string' ? parsed.selectedText : '',
+        elementRole: typeof parsed.elementRole === 'string' ? parsed.elementRole : '',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private normalizeDiagnostics(diagnostics: unknown): HistoryDiagnostics | null {
+    if (!diagnostics || typeof diagnostics !== 'object' || Array.isArray(diagnostics)) {
+      return null;
+    }
+
+    return diagnostics as HistoryDiagnostics;
+  }
+
   private normalizeRecord(record: ParsedHistoryRecord): LocalHistoryRecord {
     const finalText = record.final_text ?? record.optimized_text ?? record.original_text;
+    const parsedContext = this.parseAppContext(record.app_context);
     const wordCount = typeof record.word_count === 'number'
       ? record.word_count
       : LocalHistoryService.countWords(finalText);
@@ -76,9 +111,13 @@ export class LocalHistoryService {
       original_text: record.original_text,
       optimized_text: record.optimized_text ?? null,
       command_text: record.command_text ?? null,
-      source_text: record.source_text ?? null,
+      source_text: record.source_text ?? parsedContext?.selectedText ?? null,
       final_text: finalText,
       app_context: record.app_context ?? null,
+      detected_language: record.detected_language ?? record.language ?? null,
+      app_name: record.app_name ?? parsedContext?.appName ?? null,
+      window_title: record.window_title ?? parsedContext?.windowTitle ?? null,
+      diagnostics: this.normalizeDiagnostics(record.diagnostics),
       duration_seconds: typeof record.duration_seconds === 'number' ? record.duration_seconds : null,
       word_count: wordCount,
       created_at: record.created_at,
@@ -107,6 +146,10 @@ export class LocalHistoryService {
     const from = page * pageSize;
     const sliced = allRecords.slice(from, from + pageSize);
     return { data: sliced, total: allRecords.length };
+  }
+
+  listAll(): LocalHistoryRecord[] {
+    return this.list(0, Number.MAX_SAFE_INTEGER).data;
   }
 
   delete(id: string): boolean {
