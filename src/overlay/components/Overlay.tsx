@@ -4,7 +4,7 @@ import { PcmAudioRecorder } from '../services/pcm-audio-recorder';
 import { soundEffects } from '../services/sound-effects';
 import { WaveformAnimation } from './WaveformAnimation';
 import { OVERLAY_IDLE_HEIGHT, OVERLAY_IDLE_WIDTH } from '../../shared/constants';
-import type { AppSettings, SessionMode } from '../../shared/types';
+import type { AppSettings, AppStatus, SessionMode } from '../../shared/types';
 
 const pcmRecorder = new PcmAudioRecorder();
 
@@ -16,22 +16,21 @@ function rlog(msg: string) {
 const MAX_RECORDING_MS = 10 * 60 * 1000;
 const HARD_KILL_MS = 15 * 60 * 1000;
 
-const PILL_HEIGHT = 34;
-const ACTIVE_PILL_WIDTH = 176;
-const ASK_ACTIVE_PILL_WIDTH = 216;
-const TRANSCRIBING_PILL_WIDTH = 188;
-const ASK_TRANSCRIBING_PILL_WIDTH = 236;
-const DONE_PILL_WIDTH = 176;
-const ASK_DONE_PILL_WIDTH = 208;
-const ERROR_PILL_WIDTH = 280;
+const ACTIVE_WIDTH = 380;
+const ACTIVE_MAX_HEIGHT = 260;
+const HEADER_HEIGHT = 44;
+const BODY_MAX_HEIGHT_RECORDING = 160;
+const BODY_MAX_HEIGHT_POST_RECORDING = 104;
 const IDLE_WINDOW_HEIGHT = OVERLAY_IDLE_HEIGHT + 24;
-const TRANSCRIPT_PADDING = 24;
-const TRANSCRIPT_MAX_TEXT_HEIGHT = 200;
+const WINDOW_HEIGHT_PADDING = 24;
+const WAVEFORM_ACTIVE_COLOR = '#f4efe6';
+const WAVEFORM_IDLE_COLOR = 'rgba(244, 239, 230, 0.34)';
 
 export const Overlay: React.FC = () => {
   const { status, setStatus, error, setError } = useAppStore();
   const [volumeWarning, setVolumeWarning] = useState<'none' | 'silence'>('none');
-  const [transcriptLines, setTranscriptLines] = useState<string[]>([]);
+  const [liveTranscriptLines, setLiveTranscriptLines] = useState<string[]>([]);
+  const [finalTranscript, setFinalTranscript] = useState<string | null>(null);
   const [sessionMode, setSessionMode] = useState<SessionMode>('dictation');
   const analyserRef = useRef<AnalyserNode | null>(null);
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,7 +39,7 @@ export const Overlay: React.FC = () => {
   const isStoppingRef = useRef<boolean>(false);
   const isStartingRef = useRef<boolean>(false);
   const transcriptEndRef = useRef<HTMLDivElement | null>(null);
-  const transcriptCardRef = useRef<HTMLDivElement | null>(null);
+  const overlayCardRef = useRef<HTMLDivElement | null>(null);
   const statusRef = useRef(status);
 
   const handleStartRecordingRef = useRef<typeof handleStartRecording | undefined>(undefined);
@@ -60,35 +59,29 @@ export const Overlay: React.FC = () => {
     }
   }, []);
 
-  const requestOverlayResize = useCallback((nextStatus: typeof status, lines: string[]) => {
-    if (nextStatus === 'recording' && lines.length > 0) {
-      requestAnimationFrame(() => {
-        const cardEl = transcriptCardRef.current;
-        if (cardEl) {
-          const cardHeight = cardEl.scrollHeight;
-          const totalHeight = Math.min(
-            cardHeight + PILL_HEIGHT + 8,
-            TRANSCRIPT_MAX_TEXT_HEIGHT + TRANSCRIPT_PADDING + PILL_HEIGHT + 8
-          );
-          window.electronAPI.realtimeResize(320, totalHeight + 24);
-        }
-      });
+  const clearOverlayContent = useCallback(() => {
+    setLiveTranscriptLines([]);
+    setFinalTranscript(null);
+  }, []);
+
+  const requestOverlayResize = useCallback((nextStatus: AppStatus) => {
+    if (nextStatus === 'idle') {
+      window.electronAPI.realtimeResize(OVERLAY_IDLE_WIDTH, IDLE_WINDOW_HEIGHT);
       return;
     }
 
-    const width = nextStatus === 'recording'
-      ? (sessionMode === 'ask' ? ASK_ACTIVE_PILL_WIDTH : ACTIVE_PILL_WIDTH)
-      : nextStatus === 'transcribing'
-        ? (sessionMode === 'ask' ? ASK_TRANSCRIBING_PILL_WIDTH : TRANSCRIBING_PILL_WIDTH)
-        : nextStatus === 'done'
-          ? (sessionMode === 'ask' ? ASK_DONE_PILL_WIDTH : DONE_PILL_WIDTH)
-          : nextStatus === 'error'
-            ? ERROR_PILL_WIDTH
-            : OVERLAY_IDLE_WIDTH;
+    requestAnimationFrame(() => {
+      const cardEl = overlayCardRef.current;
+      const measuredHeight = cardEl
+        ? Math.min(Math.ceil(cardEl.getBoundingClientRect().height), ACTIVE_MAX_HEIGHT)
+        : HEADER_HEIGHT;
 
-    const height = nextStatus === 'idle' ? IDLE_WINDOW_HEIGHT : PILL_HEIGHT + 24;
-    window.electronAPI.realtimeResize(width, height);
-  }, [sessionMode]);
+      window.electronAPI.realtimeResize(
+        ACTIVE_WIDTH,
+        Math.min(measuredHeight + WINDOW_HEIGHT_PADDING, ACTIVE_MAX_HEIGHT + WINDOW_HEIGHT_PADDING)
+      );
+    });
+  }, []);
 
   const handleCancelRecording = useCallback(async () => {
     rlog('[Cancel] Cancelling recording...');
@@ -98,7 +91,7 @@ export const Overlay: React.FC = () => {
     try {
       pcmRecorder.stop();
       analyserRef.current = null;
-      setTranscriptLines([]);
+      clearOverlayContent();
       soundEffects.error();
       setStatus('idle');
 
@@ -112,7 +105,7 @@ export const Overlay: React.FC = () => {
         isCancellingRef.current = false;
       }, 100);
     }
-  }, [setStatus, clearRecordingTimers]);
+  }, [clearOverlayContent, setStatus, clearRecordingTimers]);
 
   const handleStopRecording = useCallback(async () => {
     if (isCancellingRef.current || isStoppingRef.current) return;
@@ -139,7 +132,7 @@ export const Overlay: React.FC = () => {
     if (isStartingRef.current || isStoppingRef.current) return;
     isStartingRef.current = true;
     isCancellingRef.current = false;
-    setTranscriptLines([]);
+    clearOverlayContent();
     setStatus('recording');
 
     try {
@@ -206,7 +199,7 @@ export const Overlay: React.FC = () => {
     } finally {
       isStartingRef.current = false;
     }
-  }, [setStatus, setError, handleStopRecording]);
+  }, [clearOverlayContent, setStatus, setError, handleStopRecording]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -275,9 +268,11 @@ export const Overlay: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    requestOverlayResize(status, transcriptLines);
-  }, [status, transcriptLines, requestOverlayResize]);
+    if (status === 'recording') {
+      transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    requestOverlayResize(status);
+  }, [error, finalTranscript, liveTranscriptLines, requestOverlayResize, status]);
 
   useEffect(() => {
     const disposers = [
@@ -293,18 +288,18 @@ export const Overlay: React.FC = () => {
       window.electronAPI.onStatusUpdate((newStatus) => {
         setStatusRef.current?.(newStatus);
         if (newStatus === 'idle') {
-          setTranscriptLines([]);
+          clearOverlayContent();
         }
       }),
       window.electronAPI.onTranscriptionResult((text) => {
-        void text;
+        setFinalTranscript(text);
       }),
       window.electronAPI.onTranscriptionError((errorMsg) => {
         soundEffects.error();
         setErrorRef.current?.(errorMsg);
       }),
       window.electronAPI.onRealtimeUtterance((text) => {
-        setTranscriptLines((prev) => [...prev, text]);
+        setLiveTranscriptLines((prev) => [...prev, text]);
       }),
       window.electronAPI.onRealtimeError((errorMsg) => {
         soundEffects.error();
@@ -313,86 +308,133 @@ export const Overlay: React.FC = () => {
     ];
 
     return () => disposers.forEach((dispose) => dispose());
-  }, []);
+  }, [clearOverlayContent]);
 
-  const fullTranscript = transcriptLines.join(' ');
-  const hasTranscript = fullTranscript.length > 0;
+  const liveTranscript = liveTranscriptLines.join(' ').trim();
+  const previewText = status === 'done'
+    ? finalTranscript?.trim() || liveTranscript
+    : liveTranscript;
+  const hasPreviewText = previewText.length > 0;
+  const hasErrorDetail = status === 'error' && Boolean(error);
+  const showPreview = status !== 'idle' && (hasPreviewText || hasErrorDetail);
   const modeLabel = sessionMode === 'ask' ? 'Ask' : 'Dictation';
   const recordingText = volumeWarning === 'silence'
-    ? 'No input'
+    ? 'No input detected'
     : sessionMode === 'ask'
       ? 'Listening for instruction'
       : 'Listening';
   const transcribingText = sessionMode === 'ask' ? 'Transforming selection...' : 'Polishing transcript...';
   const doneText = sessionMode === 'ask' ? 'Selection replaced' : 'Pasted successfully';
-  const overlayPillClassName = [
-    'overlay-pill',
-    `overlay-pill--${status}`,
-    hasTranscript ? 'overlay-pill--with-transcript' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const previewLabel = status === 'recording'
+    ? (sessionMode === 'ask' ? 'Live instruction' : 'Live transcript')
+    : status === 'transcribing'
+      ? 'Transcript preview'
+      : status === 'done'
+        ? (sessionMode === 'ask' ? 'Applied text' : 'Pasted text')
+        : hasPreviewText
+          ? 'Captured speech'
+          : 'Error details';
+  const statusText = status === 'recording'
+    ? recordingText
+    : status === 'transcribing'
+      ? transcribingText
+      : status === 'done'
+        ? doneText
+        : 'Could not complete';
+  const previewBodyMaxHeight = status === 'recording'
+    ? BODY_MAX_HEIGHT_RECORDING
+    : BODY_MAX_HEIGHT_POST_RECORDING;
+  const overlayShellClassName = [
+    'overlay-shell',
+    status === 'idle' ? 'overlay-shell--idle' : 'overlay-shell--active',
+    status !== 'idle' ? `overlay-shell--${status}` : '',
+    showPreview ? 'overlay-shell--with-preview' : '',
+  ].filter(Boolean).join(' ');
+  const previewClassName = [
+    'overlay-preview',
+    status === 'recording' ? 'overlay-preview--scrollable' : 'overlay-preview--static',
+    status === 'error' ? 'overlay-preview--error' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <div className="overlay-container">
       <div className="overlay-wrapper">
-        {hasTranscript && status === 'recording' && (
-          <div className="transcript-card" ref={transcriptCardRef}>
-            <div className="transcript-text">
-              {fullTranscript}
-              <span className="typing-cursor" />
-            </div>
-            <div ref={transcriptEndRef} />
-          </div>
-        )}
+        <div className={overlayShellClassName} ref={overlayCardRef}>
+          {status === 'idle' ? (
+            <>
+              <span className="overlay-idle-glow" />
+              <span className="overlay-idle-core" />
+            </>
+          ) : (
+            <>
+              <div className="overlay-shell-sheen" aria-hidden="true" />
+              <div className="overlay-header">
+                <div className="overlay-header-main">
+                  <span className="overlay-mode-pill">{modeLabel}</span>
+                  <div className="overlay-status-wrap">
+                    <span className={`overlay-state-badge overlay-state-badge--${status}`} aria-hidden="true" />
+                    <span className={`overlay-status-text${volumeWarning === 'silence' ? ' overlay-status-text--warning' : ''}`}>
+                      {statusText}
+                    </span>
+                  </div>
+                </div>
 
-        <div className={overlayPillClassName}>
-          <div className={`pill-layer pill-layer--idle ${status === 'idle' ? 'pill-layer--active' : ''}`} />
+                <div className="overlay-header-actions">
+                  {status === 'recording' && (
+                    <WaveformAnimation
+                      analyser={analyserRef.current}
+                      isActive
+                      activeColor={WAVEFORM_ACTIVE_COLOR}
+                      inactiveColor={WAVEFORM_IDLE_COLOR}
+                    />
+                  )}
 
-          <div className={`pill-layer ${status === 'recording' ? 'pill-layer--active' : ''}`}>
-            <span className="overlay-mode-pill">{modeLabel}</span>
-            <span className="overlay-status-dot" />
-            <WaveformAnimation
-              analyser={status === 'recording' ? analyserRef.current : null}
-              isActive={status === 'recording'}
-            />
-            <span className={`overlay-text${volumeWarning === 'silence' ? ' overlay-warning' : ''}`}>
-              {recordingText}
-            </span>
-            <button
-              className="cancel-button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleCancelRecording();
-              }}
-              title="Cancel (ESC)"
-            >
-              ×
-            </button>
-          </div>
+                  {status === 'transcribing' && (
+                    <span className="processing-dots" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  )}
 
-          <div className={`pill-layer ${status === 'transcribing' ? 'pill-layer--active' : ''}`}>
-            <span className="overlay-mode-pill">{modeLabel}</span>
-            <span className="processing-dots" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-            <span className="overlay-text">{transcribingText}</span>
-          </div>
+                  {status === 'recording' && (
+                    <button
+                      className="cancel-button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCancelRecording();
+                      }}
+                      title="Cancel (ESC)"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
 
-          <div className={`pill-layer ${status === 'done' ? 'pill-layer--active' : ''}`}>
-            <span className="overlay-mode-pill">{modeLabel}</span>
-            <span className="status-badge status-badge--done" aria-hidden="true" />
-            <span className="overlay-text overlay-done">{doneText}</span>
-          </div>
-
-          <div className={`pill-layer ${status === 'error' ? 'pill-layer--active' : ''}`}>
-            <span className="overlay-mode-pill">{modeLabel}</span>
-            <span className="status-badge status-badge--error" aria-hidden="true" />
-            <span className="overlay-text overlay-error">{error || 'Error'}</span>
-          </div>
+              {showPreview && (
+                <div
+                  className={previewClassName}
+                  style={{ maxHeight: `${previewBodyMaxHeight}px` }}
+                >
+                  <div className="overlay-preview-label">{previewLabel}</div>
+                  {hasPreviewText && (
+                    <div className="overlay-preview-copy">
+                      {previewText}
+                      {status === 'recording' && <span className="typing-cursor" />}
+                    </div>
+                  )}
+                  {hasErrorDetail && (
+                    <div className="overlay-preview-note overlay-preview-note--error">
+                      {error}
+                    </div>
+                  )}
+                  <div ref={transcriptEndRef} />
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

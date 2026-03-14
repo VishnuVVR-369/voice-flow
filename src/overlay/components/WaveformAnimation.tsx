@@ -3,6 +3,8 @@ import React, { useEffect, useRef } from 'react';
 interface WaveformAnimationProps {
   analyser: AnalyserNode | null;
   isActive: boolean;
+  activeColor?: string;
+  inactiveColor?: string;
 }
 
 const BAR_COUNT = 21;
@@ -13,7 +15,12 @@ const BAR_MAX_HEIGHT = 16;
 const BASE_HEIGHTS = [4, 4, 5, 5, 6, 7, 8, 10, 12, 14, 16, 14, 12, 10, 8, 7, 6, 5, 5, 4, 4];
 const SILENCE_HEIGHT = 2;
 
-export const WaveformAnimation: React.FC<WaveformAnimationProps> = ({ analyser, isActive }) => {
+export const WaveformAnimation: React.FC<WaveformAnimationProps> = ({
+  analyser,
+  isActive,
+  activeColor = '#3a4f65',
+  inactiveColor = 'rgba(78, 71, 63, 0.4)',
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
 
@@ -55,7 +62,7 @@ export const WaveformAnimation: React.FC<WaveformAnimationProps> = ({ analyser, 
         const x = i * (BAR_WIDTH + BAR_GAP);
         const y = (BAR_MAX_HEIGHT - height) / 2;
 
-        ctx.fillStyle = isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.45)';
+        ctx.fillStyle = isActive ? activeColor : inactiveColor;
         ctx.beginPath();
         ctx.roundRect(x, y, BAR_WIDTH, height, 999);
         ctx.fill();
@@ -71,7 +78,7 @@ export const WaveformAnimation: React.FC<WaveformAnimationProps> = ({ analyser, 
     return () => {
       cancelAnimationFrame(animationRef.current);
     };
-  }, [analyser, isActive]);
+  }, [activeColor, analyser, inactiveColor, isActive]);
 
   const totalWidth = BAR_COUNT * (BAR_WIDTH + BAR_GAP) - BAR_GAP;
 

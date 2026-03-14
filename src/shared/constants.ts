@@ -53,5 +53,5 @@ export const IPC_CHANNELS = {
   RENDERER_LOG: 'renderer:log',
 } as const;
 
-export const OVERLAY_IDLE_WIDTH = 36;
-export const OVERLAY_IDLE_HEIGHT = 8;
+export const OVERLAY_IDLE_WIDTH = 56;
+export const OVERLAY_IDLE_HEIGHT = 12;
