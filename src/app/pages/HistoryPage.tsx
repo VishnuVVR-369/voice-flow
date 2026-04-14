@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { TranscriptionRecord } from '../../shared/types';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import type { HistoryListRequest, TranscriptionRecord } from '../../shared/types';
 
 type HistoryTab = 'all' | 'dictation' | 'ask';
 
@@ -8,33 +8,52 @@ interface HistoryGroup {
   entries: TranscriptionRecord[];
 }
 
+const PAGE_SIZE = 50;
+
 const HistoryPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<HistoryTab>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [records, setRecords] = useState<TranscriptionRecord[]>([]);
+  const [matchingTotal, setMatchingTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [detailRecord, setDetailRecord] = useState<TranscriptionRecord | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  const loadHistory = useCallback(async () => {
+  const loadHistory = useCallback(async (page = 0, append = false) => {
+    const request: HistoryListRequest = {
+      page,
+      pageSize: PAGE_SIZE,
+      searchQuery: deferredSearchQuery.trim() || undefined,
+      mode: activeTab,
+    };
+
     try {
-      const result = await window.electronAPI.historyList(0, Number.MAX_SAFE_INTEGER);
-      setRecords(result.data);
+      const result = await window.electronAPI.historyList(request);
+      setMatchingTotal(result.total);
+      setRecords((prev) => append ? [...prev, ...result.data] : result.data);
     } catch (err) {
       console.error('Failed to load history:', err);
       setStatusMessage('Failed to load history.');
     } finally {
-      setIsLoading(false);
+      if (append) {
+        setIsLoadingMore(false);
+      } else {
+        setIsLoading(false);
+      }
     }
-  }, []);
+  }, [activeTab, deferredSearchQuery]);
 
   useEffect(() => {
-    void loadHistory();
+    setIsLoading(true);
+    void loadHistory(0, false);
     const dispose = window.electronAPI.onHistoryUpdated(() => {
-      void loadHistory();
+      setIsLoading(true);
+      void loadHistory(0, false);
     });
     return dispose;
   }, [loadHistory]);
@@ -77,42 +96,8 @@ const HistoryPage: React.FC = () => {
     };
   }, [statusMessage]);
 
-  const hasAskRecords = useMemo(
-    () => records.some((record) => record.mode === 'ask'),
-    [records],
-  );
-
-  useEffect(() => {
-    if (activeTab === 'ask' && !hasAskRecords) {
-      setActiveTab('all');
-    }
-  }, [activeTab, hasAskRecords]);
-
-  const filteredRecords = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
-    return records.filter((record) => {
-      if (activeTab !== 'all' && record.mode !== activeTab) {
-        return false;
-      }
-
-      if (!query) {
-        return true;
-      }
-
-      const searchable = [
-        record.final_text,
-        record.original_text,
-        record.app_name ?? '',
-        record.window_title ?? '',
-      ].join('\n').toLowerCase();
-
-      return searchable.includes(query);
-    });
-  }, [activeTab, records, searchQuery]);
-
-  const groupedRecords = useMemo(() => groupRecords(filteredRecords), [filteredRecords]);
-  const totalEntries = records.length;
+  const groupedRecords = useMemo(() => groupRecords(records), [records]);
+  const hasMoreRecords = records.length < matchingTotal;
 
   const runRecordAction = async (actionKey: string, callback: () => Promise<void>) => {
     setBusyAction(actionKey);
@@ -162,7 +147,8 @@ const HistoryPage: React.FC = () => {
         setDetailRecord(null);
       }
 
-      await loadHistory();
+      setIsLoading(true);
+      await loadHistory(0, false);
       setStatusMessage('History record deleted.');
     });
   };
@@ -215,6 +201,15 @@ const HistoryPage: React.FC = () => {
     }
   };
 
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMoreRecords) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    await loadHistory(Math.floor(records.length / PAGE_SIZE), true);
+  };
+
   return (
     <div className="page-stack">
       <header className="page-header">
@@ -224,7 +219,7 @@ const HistoryPage: React.FC = () => {
         </div>
         <div className="history-header-actions">
           <div className="page-meta">
-            {filteredRecords.length} of {totalEntries} entries
+            {records.length} of {matchingTotal} loaded
           </div>
           <button
             type="button"
@@ -254,15 +249,13 @@ const HistoryPage: React.FC = () => {
             >
               Dictation
             </button>
-            {hasAskRecords && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('ask')}
-                className={`segmented-btn ${activeTab === 'ask' ? 'segmented-btn-active' : ''}`}
-              >
-                Ask
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setActiveTab('ask')}
+              className={`segmented-btn ${activeTab === 'ask' ? 'segmented-btn-active' : ''}`}
+            >
+              Ask
+            </button>
           </div>
 
           <label className="history-search-shell">
@@ -285,7 +278,7 @@ const HistoryPage: React.FC = () => {
           <span className="empty-state">Loading your transcript archive...</span>
         ) : groupedRecords.length === 0 ? (
           <span className="empty-state">
-            {totalEntries === 0
+            {matchingTotal === 0
               ? 'No entries yet. Start recording to create your first transcript.'
               : 'No records match the current filters.'}
           </span>
@@ -363,6 +356,17 @@ const HistoryPage: React.FC = () => {
               </div>
             </div>
           ))
+        )}
+
+        {!isLoading && hasMoreRecords && (
+          <button
+            type="button"
+            onClick={() => void handleLoadMore()}
+            className="action-btn"
+            disabled={isLoadingMore}
+          >
+            {isLoadingMore ? 'Loading...' : 'Load more'}
+          </button>
         )}
       </section>
 

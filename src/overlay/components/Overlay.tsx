@@ -164,12 +164,19 @@ export const Overlay: React.FC = () => {
 
       if (isStoppingRef.current || isCancellingRef.current) {
         if (micReady) pcmRecorder.stop();
-        if (result.success) window.electronAPI.realtimeStop();
+        if (result.success) {
+          window.electronAPI.realtimeStop();
+        } else {
+          window.electronAPI.realtimeAbort();
+        }
         return;
       }
 
       if (!result.success || !micReady) {
         if (micReady) pcmRecorder.stop();
+        if (result.success) {
+          window.electronAPI.realtimeAbort();
+        }
         setError(result.error || 'Failed to connect');
         setStatus('error');
         return;
@@ -191,10 +198,12 @@ export const Overlay: React.FC = () => {
         pcmRecorder.stop();
         analyserRef.current = null;
         soundEffects.error();
+        window.electronAPI.realtimeAbort();
         setError('Recording killed: exceeded 15 min limit');
       }, HARD_KILL_MS);
     } catch (err) {
       console.error('Failed to start recording:', err);
+      window.electronAPI.realtimeAbort();
       setError('Failed to access microphone');
     } finally {
       isStartingRef.current = false;

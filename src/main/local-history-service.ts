@@ -1,7 +1,13 @@
 import { app } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { CursorContext, HistoryDiagnostics, SessionMode, TranscriptionStatsResult } from '../shared/types';
+import type {
+  CursorContext,
+  HistoryDiagnostics,
+  HistoryFilterMode,
+  SessionMode,
+  TranscriptionStatsResult,
+} from '../shared/types';
 
 export interface LocalHistoryRecord {
   id: string;
@@ -25,8 +31,14 @@ type ParsedHistoryRecord = Partial<LocalHistoryRecord> & Pick<LocalHistoryRecord
   language?: string | null;
 };
 
+interface HistoryListOptions {
+  searchQuery?: string;
+  mode?: HistoryFilterMode;
+}
+
 export class LocalHistoryService {
   private historyDir: string;
+  private cachedRecords: LocalHistoryRecord[] | null = null;
 
   constructor(customDir?: string) {
     this.historyDir = customDir || path.join(app.getPath('userData'), 'history');
@@ -42,6 +54,7 @@ export class LocalHistoryService {
   setHistoryDir(dir: string): void {
     this.historyDir = dir;
     this.ensureDir();
+    this.cachedRecords = null;
   }
 
   getHistoryDir(): string {
@@ -65,6 +78,10 @@ export class LocalHistoryService {
     const fullRecord = this.normalizeRecord(record);
     const filePath = path.join(this.historyDir, `${record.id}.json`);
     fs.writeFileSync(filePath, JSON.stringify(fullRecord, null, 2), 'utf-8');
+    if (this.cachedRecords) {
+      this.cachedRecords.unshift(fullRecord);
+      this.cachedRecords.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
     return fullRecord;
   }
 
@@ -124,7 +141,7 @@ export class LocalHistoryService {
     };
   }
 
-  list(page: number, pageSize: number): { data: LocalHistoryRecord[]; total: number } {
+  private loadRecordsFromDisk(): LocalHistoryRecord[] {
     this.ensureDir();
     const files = fs.readdirSync(this.historyDir)
       .filter(f => f.endsWith('.json'))
@@ -142,10 +159,47 @@ export class LocalHistoryService {
     }
 
     allRecords.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return allRecords;
+  }
+
+  private getAllRecords(): LocalHistoryRecord[] {
+    if (!this.cachedRecords) {
+      this.cachedRecords = this.loadRecordsFromDisk();
+    }
+
+    return this.cachedRecords;
+  }
+
+  private matchesFilters(record: LocalHistoryRecord, options: HistoryListOptions): boolean {
+    if (options.mode && options.mode !== 'all' && record.mode !== options.mode) {
+      return false;
+    }
+
+    const query = options.searchQuery?.trim().toLowerCase();
+    if (!query) {
+      return true;
+    }
+
+    const searchable = [
+      record.final_text,
+      record.original_text,
+      record.app_name ?? '',
+      record.window_title ?? '',
+    ].join('\n').toLowerCase();
+
+    return searchable.includes(query);
+  }
+
+  list(
+    page: number,
+    pageSize: number,
+    options: HistoryListOptions = {},
+  ): { data: LocalHistoryRecord[]; total: number } {
+    const filteredRecords = this.getAllRecords().filter((record) => this.matchesFilters(record, options));
 
     const from = page * pageSize;
-    const sliced = allRecords.slice(from, from + pageSize);
-    return { data: sliced, total: allRecords.length };
+    const sliced = filteredRecords.slice(from, from + pageSize);
+    return { data: sliced, total: filteredRecords.length };
   }
 
   listAll(): LocalHistoryRecord[] {
@@ -156,40 +210,28 @@ export class LocalHistoryService {
     const filePath = path.join(this.historyDir, `${id}.json`);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+      if (this.cachedRecords) {
+        this.cachedRecords = this.cachedRecords.filter((record) => record.id !== id);
+      }
       return true;
     }
     return false;
   }
 
   getById(id: string): LocalHistoryRecord | null {
-    const filePath = path.join(this.historyDir, `${id}.json`);
-    if (!fs.existsSync(filePath)) return null;
-    try {
-      return this.normalizeRecord(JSON.parse(fs.readFileSync(filePath, 'utf-8')) as ParsedHistoryRecord);
-    } catch {
-      return null;
-    }
+    return this.getAllRecords().find((record) => record.id === id) ?? null;
   }
 
   /** Compute aggregate stats from all local history files */
   computeStats(): TranscriptionStatsResult {
-    this.ensureDir();
-    const files = fs.readdirSync(this.historyDir).filter(f => f.endsWith('.json'));
-
     let totalWords = 0;
     let totalCount = 0;
     let totalDurationSeconds = 0;
 
-    for (const file of files) {
-      try {
-        const content = fs.readFileSync(path.join(this.historyDir, file), 'utf-8');
-        const record = this.normalizeRecord(JSON.parse(content) as ParsedHistoryRecord);
-        totalWords += record.word_count || 0;
-        totalCount += 1;
-        totalDurationSeconds += record.duration_seconds || 0;
-      } catch {
-        // skip unreadable files
-      }
+    for (const record of this.getAllRecords()) {
+      totalWords += record.word_count || 0;
+      totalCount += 1;
+      totalDurationSeconds += record.duration_seconds || 0;
     }
 
     return { totalWords, totalCount, totalDurationSeconds };

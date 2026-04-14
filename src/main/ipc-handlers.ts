@@ -28,6 +28,7 @@ export class IPCHandler {
   private activeAskPasteBehavior: AskPasteBehavior = 'replace-selection';
   private sessionManager: RealtimeSessionManager | null = null;
   private shortcutManager: ShortcutManager | null = null;
+  private idleStatusTimer: NodeJS.Timeout | null = null;
 
   constructor(
     transcriptionService: TranscriptionService,
@@ -63,6 +64,7 @@ export class IPCHandler {
   }
 
   markRecordingStarted(): void {
+    this.clearIdleStatusTimer();
     const config = getConfig();
     this.recordingStartedAt = Date.now();
     this.activeSessionMode = config.defaultMode;
@@ -96,9 +98,20 @@ export class IPCHandler {
   }
 
   private scheduleIdleStatus(delayMs: number): void {
-    setTimeout(() => {
+    this.clearIdleStatusTimer();
+    this.idleStatusTimer = setTimeout(() => {
+      this.idleStatusTimer = null;
       this.sendStatus('idle');
     }, delayMs);
+  }
+
+  private clearIdleStatusTimer(): void {
+    if (!this.idleStatusTimer) {
+      return;
+    }
+
+    clearTimeout(this.idleStatusTimer);
+    this.idleStatusTimer = null;
   }
 
   private validateHotkey(hotkey: string): { normalized?: string; error?: string } {
@@ -135,6 +148,7 @@ export class IPCHandler {
     // Handle cancel from renderer (X button clicked)
     ipcMain.on(IPC_CHANNELS.RECORDING_CANCELLED, () => {
       console.log('[IPC] Recording cancelled by user');
+      this.clearIdleStatusTimer();
       this.recordingStartedAt = null;
       this.cleanupRealtimeService();
       this.sendStatus('idle');
@@ -266,6 +280,7 @@ export class IPCHandler {
     ipcMain.removeHandler(IPC_CHANNELS.REALTIME_START);
     ipcMain.removeAllListeners(IPC_CHANNELS.REALTIME_AUDIO_CHUNK);
     ipcMain.removeAllListeners(IPC_CHANNELS.REALTIME_STOP);
+    ipcMain.removeAllListeners(IPC_CHANNELS.REALTIME_ABORT);
     ipcMain.removeAllListeners(IPC_CHANNELS.REALTIME_RESIZE);
 
     // REALTIME_START: acquire session (warm or cold) -> wire up events -> ack renderer
@@ -274,6 +289,7 @@ export class IPCHandler {
         console.warn('[IPC] REALTIME_START already in progress — rejecting concurrent call');
         return { success: false, error: 'Already starting' };
       }
+      this.clearIdleStatusTimer();
       this.isStartingRealtime = true;
 
       try {
@@ -474,6 +490,16 @@ export class IPCHandler {
       }
     });
 
+    ipcMain.on(IPC_CHANNELS.REALTIME_ABORT, () => {
+      console.warn('[IPC] Realtime recording aborted');
+      this.clearIdleStatusTimer();
+      this.recordingStartedAt = null;
+      this.cleanupRealtimeService();
+      this.shortcutManager?.resetState();
+      this.sendStatus('error');
+      this.scheduleIdleStatus(2000);
+    });
+
     // Renderer diagnostic logging (forward to terminal)
     ipcMain.removeAllListeners(IPC_CHANNELS.RENDERER_LOG);
     ipcMain.on(IPC_CHANNELS.RENDERER_LOG, (_event, msg: string) => {
@@ -486,6 +512,12 @@ export class IPCHandler {
         resizeOverlay(this.overlayWindow, width, height);
       }
     });
+  }
+
+  dispose(): void {
+    this.clearIdleStatusTimer();
+    this.cleanupRealtimeService();
+    ipcMain.removeAllListeners(IPC_CHANNELS.REALTIME_ABORT);
   }
 
   /** Reuses dictionary hallucination detection from TranscriptionService */

@@ -45,6 +45,7 @@ export const IPC_CHANNELS = {
   REALTIME_STARTED: 'realtime:started',
   REALTIME_AUDIO_CHUNK: 'realtime:audio-chunk',
   REALTIME_STOP: 'realtime:stop',
+  REALTIME_ABORT: 'realtime:abort',
   REALTIME_UTTERANCE: 'realtime:utterance',
   REALTIME_ERROR: 'realtime:error',
   REALTIME_RESIZE: 'realtime:resize',

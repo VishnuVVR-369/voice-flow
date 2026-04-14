@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from './shared/constants';
-import type { AppSettings, AppStatus, ElectronAPI } from './shared/types';
+import type { AppSettings, AppStatus, ElectronAPI, HistoryListRequest } from './shared/types';
 
 const electronAPI: ElectronAPI = {
   onRecordingStart: (callback: () => void) => {
@@ -63,8 +63,8 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.invoke(IPC_CHANNELS.DICTIONARY_DELETE, { id }),
 
   // History
-  historyList: (page: number, pageSize: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.HISTORY_LIST, { page, pageSize }),
+  historyList: (request: HistoryListRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.HISTORY_LIST, request),
   historyGet: (id: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, { id }),
   historyDelete: (id: string) =>
@@ -97,6 +97,9 @@ const electronAPI: ElectronAPI = {
   },
   realtimeStop: () => {
     ipcRenderer.send(IPC_CHANNELS.REALTIME_STOP);
+  },
+  realtimeAbort: () => {
+    ipcRenderer.send(IPC_CHANNELS.REALTIME_ABORT);
   },
   onRealtimeStarted: (callback: () => void) => {
     const handler = () => callback();

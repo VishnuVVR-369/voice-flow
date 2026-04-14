@@ -31,6 +31,15 @@ export interface DictionaryWord {
 }
 
 // History types
+export type HistoryFilterMode = 'all' | SessionMode;
+
+export interface HistoryListRequest {
+  page: number;
+  pageSize: number;
+  searchQuery?: string;
+  mode?: HistoryFilterMode;
+}
+
 export interface HistoryDiagnosticsPass {
   score: number;
   reasons: string[];
@@ -114,6 +123,7 @@ export interface ElectronAPI {
   realtimeStart: () => Promise<{ success: boolean; error?: string }>;
   realtimeSendAudio: (pcm16: ArrayBuffer) => void;
   realtimeStop: () => void;
+  realtimeAbort: () => void;
   onRealtimeStarted: (callback: () => void) => Disposer;
   onRealtimeUtterance: (callback: (text: string) => void) => Disposer;
   onRealtimeError: (callback: (error: string) => void) => Disposer;
@@ -125,7 +135,7 @@ export interface ElectronAPI {
   dictionaryDelete: (id: string) => Promise<{ success: boolean }>;
 
   // History
-  historyList: (page: number, pageSize: number) => Promise<HistoryListResult>;
+  historyList: (request: HistoryListRequest) => Promise<HistoryListResult>;
   historyGet: (id: string) => Promise<TranscriptionRecord | null>;
   historyDelete: (id: string) => Promise<HistoryDeleteResult>;
   historyReinject: (id: string) => Promise<HistoryReinjectResult>;

@@ -177,6 +177,7 @@ app.on('before-quit', () => {
   prepareMainWindowForQuit();
   cleanupShortcuts();
   stopOverlayPositioner();
+  ipcHandler.dispose();
   sessionManager.dispose();
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.close();

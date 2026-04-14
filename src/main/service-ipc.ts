@@ -6,7 +6,7 @@ import { DictionaryService } from './dictionary-service';
 import * as fs from 'fs';
 import { TextInjector } from './text-injector';
 import { getConfig } from './config-store';
-import type { CursorContext } from '../shared/types';
+import type { CursorContext, HistoryListRequest } from '../shared/types';
 
 const historyService = new HistoryService();
 const dictionaryService = new DictionaryService();
@@ -54,8 +54,11 @@ function ensureExportExtension(filePath: string): string {
 
 export function registerServiceIPC(textInjector: TextInjector): void {
   // --- History ---
-  safeHandle(IPC_CHANNELS.HISTORY_LIST, async (_event, req: { page: number; pageSize: number }) => {
-    return historyService.list(req.page, req.pageSize);
+  safeHandle(IPC_CHANNELS.HISTORY_LIST, async (_event, req: HistoryListRequest) => {
+    return historyService.list(req.page, req.pageSize, {
+      searchQuery: req.searchQuery,
+      mode: req.mode,
+    });
   });
 
   safeHandle(IPC_CHANNELS.HISTORY_GET, async (_event, req: { id: string }) => {

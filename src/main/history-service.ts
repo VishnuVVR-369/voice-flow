@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { LocalHistoryService, type LocalHistoryRecord } from './local-history-service';
 import type {
+  HistoryFilterMode,
   HistoryDeleteResult,
   HistoryDiagnostics,
   HistoryListResult,
@@ -82,8 +83,12 @@ export class HistoryService {
     });
   }
 
-  async list(page: number, pageSize: number): Promise<HistoryListResult> {
-    const result = localHistory.list(page, pageSize);
+  async list(
+    page: number,
+    pageSize: number,
+    options: { searchQuery?: string; mode?: HistoryFilterMode } = {},
+  ): Promise<HistoryListResult> {
+    const result = localHistory.list(page, pageSize, options);
     return {
       data: result.data.map((record) => this.toTranscriptionRecord(record)),
       total: result.total,
