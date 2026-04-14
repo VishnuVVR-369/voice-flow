@@ -42,10 +42,11 @@ export class TrayManager {
   }
 
   private createTrayIcon(): NativeImage {
-    // nativeImage.createFromDataURL does NOT support SVG — use PNG files
-    const img = nativeImage.createFromPath(getAssetPath('icon.png'));
-    img.setTemplateImage(true);
-    return img;
+    return nativeImage.createFromPath(getAssetPath('icon.png')).resize({
+      width: 18,
+      height: 18,
+      quality: 'best',
+    });
   }
 
   destroy(): void {

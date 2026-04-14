@@ -145,7 +145,7 @@ npm run make
 4. Paste your Groq API key.
 5. Choose a microphone if needed.
 6. Confirm or change the default shortcuts:
-   - Toggle: `` ` ``
+   - Toggle: `Ctrl+Space`
    - Hold-to-record: `Shift+Space`
 7. Grant Microphone and Accessibility permissions when macOS prompts for them.
 
