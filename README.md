@@ -116,15 +116,6 @@ Lint the codebase:
 npm run lint
 ```
 
-Run local STT A/B evaluation (user-provided clips + references):
-
-```bash
-npm run eval:stt:doctor -- --data eval-data --strict
-GROQ_API_KEY=your_key npm run eval:stt -- --data /path/to/eval-set
-```
-
-Dataset format reference: `eval-data/README.md`.
-
 Create packaged output:
 
 ```bash
