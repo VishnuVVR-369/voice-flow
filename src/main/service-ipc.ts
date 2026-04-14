@@ -79,11 +79,18 @@ export function registerServiceIPC(textInjector: TextInjector): void {
       return { success: false, error: 'History record not found.' };
     }
 
-    await textInjector.inject(
+    const injectResult = await textInjector.inject(
       record.final_text,
       parseCursorContext(record.app_context),
       record.mode === 'ask' ? { pasteBehavior: getConfig().askPasteBehavior } : {},
     );
+
+    if (injectResult.status !== 'success') {
+      return {
+        success: false,
+        error: injectResult.reason || 'Failed to paste the saved result back into the target app.',
+      };
+    }
 
     return { success: true };
   });
@@ -163,7 +170,15 @@ export function registerServiceIPC(textInjector: TextInjector): void {
   });
 
   safeHandle(IPC_CHANNELS.DICTIONARY_ADD, async (_event, req: { word: string }) => {
-    return dictionaryService.add(req.word);
+    try {
+      const result = dictionaryService.add(req.word);
+      return { success: true, ...result };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to add dictionary term.',
+      };
+    }
   });
 
   safeHandle(IPC_CHANNELS.DICTIONARY_DELETE, async (_event, req: { id: string }) => {

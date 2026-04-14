@@ -5,6 +5,7 @@ const DictionaryPage: React.FC = () => {
   const [words, setWords] = useState<DictionaryWord[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [newWord, setNewWord] = useState('');
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const loadWords = async () => {
@@ -26,16 +27,43 @@ const DictionaryPage: React.FC = () => {
     }
   }, [isAdding]);
 
+  useEffect(() => {
+    if (!statusMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStatusMessage(null);
+    }, 2600);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [statusMessage]);
+
   const handleAdd = async () => {
     const trimmed = newWord.trim();
     if (!trimmed) return;
     try {
-      const added = await window.electronAPI.dictionaryAdd(trimmed);
-      setWords((prev) => [added, ...prev]);
+      const result = await window.electronAPI.dictionaryAdd(trimmed);
+      if (!result.success || !result.entry) {
+        throw new Error(result.error || 'Failed to add dictionary term.');
+      }
+
+      const entry = result.entry;
+
+      if (!result.duplicate) {
+        setWords((prev) => [entry, ...prev]);
+        setStatusMessage(`Added "${entry.word}" to the dictionary.`);
+      } else {
+        setStatusMessage(`"${entry.word}" is already in the dictionary.`);
+      }
+
       setNewWord('');
       setIsAdding(false);
     } catch (err) {
       console.error('[Dictionary] Failed to add word:', err);
+      setStatusMessage(err instanceof Error ? err.message : 'Failed to add dictionary term.');
     }
   };
 
@@ -73,6 +101,9 @@ const DictionaryPage: React.FC = () => {
         <p className="settings-copy">
           Preserve preferred spelling for names, product terms, and acronyms. Entries are applied automatically while transcribing.
         </p>
+        {statusMessage ? (
+          <p className="settings-copy">{statusMessage}</p>
+        ) : null}
       </section>
 
       {isAdding && (

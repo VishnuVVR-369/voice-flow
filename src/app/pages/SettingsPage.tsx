@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import HotkeyEditor from '../components/HotkeyEditor';
 import { useAppSettings } from '../hooks/useAppSettings';
 import type { AskPasteBehavior, SessionMode } from '../../shared/types';
@@ -20,6 +20,8 @@ const SettingsPage: React.FC = () => {
   const [defaultMode, setDefaultMode] = useState<SessionMode>('dictation');
   const [askPasteBehavior, setAskPasteBehavior] = useState<AskPasteBehavior>('replace-selection');
   const settings = useAppSettings();
+  const apiKeyRef = useRef('');
+  const committedApiKeyRef = useRef('');
 
   const refreshDevices = async () => {
     try {
@@ -41,11 +43,33 @@ const SettingsPage: React.FC = () => {
     setHoldHotkey(settings.holdToTranscribeHotkey);
     setSelectedDeviceId(settings.audioInputDeviceId);
     setEnablePolish(settings.enablePolish);
-    setApiKey(settings.groqApiKey || '');
     setTranscriptionLanguage(settings.language === '' ? '' : (settings.language || 'en'));
     setDefaultMode(settings.defaultMode);
     setAskPasteBehavior(settings.askPasteBehavior);
-  }, [settings]);
+  }, [
+    settings.askPasteBehavior,
+    settings.audioInputDeviceId,
+    settings.defaultMode,
+    settings.enablePolish,
+    settings.holdToTranscribeHotkey,
+    settings.hotkey,
+    settings.language,
+  ]);
+
+  useEffect(() => {
+    const nextApiKey = settings.groqApiKey || '';
+    const isDirty = apiKeyRef.current !== committedApiKeyRef.current;
+    committedApiKeyRef.current = nextApiKey;
+
+    if (!isDirty || apiKeyRef.current === nextApiKey) {
+      apiKeyRef.current = nextApiKey;
+      setApiKey(nextApiKey);
+    }
+  }, [settings.groqApiKey]);
+
+  useEffect(() => {
+    apiKeyRef.current = apiKey;
+  }, [apiKey]);
 
   useEffect(() => {
     refreshDevices();
@@ -79,8 +103,23 @@ const SettingsPage: React.FC = () => {
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setApiKey(value);
-    window.electronAPI.setSettings({ groqApiKey: value });
   };
+
+  const commitApiKey = () => {
+    const nextApiKey = apiKeyRef.current;
+    if (nextApiKey === committedApiKeyRef.current) {
+      return;
+    }
+
+    committedApiKeyRef.current = nextApiKey;
+    window.electronAPI.setSettings({ groqApiKey: nextApiKey });
+  };
+
+  useEffect(() => {
+    return () => {
+      commitApiKey();
+    };
+  }, []);
 
   const handleDefaultModeChange = (mode: SessionMode) => {
     setDefaultMode(mode);
@@ -140,6 +179,7 @@ const SettingsPage: React.FC = () => {
           type={showApiKey ? 'text' : 'password'}
           value={apiKey}
           onChange={handleApiKeyChange}
+          onBlur={commitApiKey}
           placeholder="gsk_..."
           className="settings-input"
         />

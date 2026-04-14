@@ -25,7 +25,16 @@ export class DictionaryService {
     for (const file of files) {
       try {
         const content = fs.readFileSync(path.join(this.dir, file), 'utf-8');
-        words.push(JSON.parse(content));
+        const parsed = JSON.parse(content) as Partial<DictionaryWord>;
+        const normalizedWord = this.normalizeWord(parsed.word);
+        if (!normalizedWord || typeof parsed.id !== 'string' || typeof parsed.created_at !== 'string') {
+          continue;
+        }
+        words.push({
+          id: parsed.id,
+          word: normalizedWord,
+          created_at: parsed.created_at,
+        });
       } catch {
         // skip corrupt files
       }
@@ -34,15 +43,25 @@ export class DictionaryService {
     return words;
   }
 
-  add(word: string): DictionaryWord {
+  add(word: string): { entry: DictionaryWord; duplicate: boolean } {
     this.ensureDir();
+    const normalizedWord = this.normalizeWord(word);
+    if (!normalizedWord) {
+      throw new Error('Dictionary terms cannot be empty.');
+    }
+
+    const existing = this.findExistingWord(normalizedWord);
+    if (existing) {
+      return { entry: existing, duplicate: true };
+    }
+
     const entry: DictionaryWord = {
       id: randomUUID(),
-      word: word.trim(),
+      word: normalizedWord,
       created_at: new Date().toISOString(),
     };
     fs.writeFileSync(path.join(this.dir, `${entry.id}.json`), JSON.stringify(entry, null, 2), 'utf-8');
-    return entry;
+    return { entry, duplicate: false };
   }
 
   delete(id: string): boolean {
@@ -55,6 +74,33 @@ export class DictionaryService {
   }
 
   getAllWords(): string[] {
-    return this.list().map(w => w.word);
+    const seen = new Set<string>();
+    const uniqueWords: string[] = [];
+
+    for (const entry of this.list()) {
+      const normalizedWord = this.normalizeWord(entry.word);
+      if (!normalizedWord) {
+        continue;
+      }
+
+      const key = normalizedWord.toLocaleLowerCase();
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      uniqueWords.push(normalizedWord);
+    }
+
+    return uniqueWords;
+  }
+
+  private normalizeWord(word: unknown): string {
+    return typeof word === 'string' ? word.trim() : '';
+  }
+
+  private findExistingWord(word: string): DictionaryWord | null {
+    const normalized = word.toLocaleLowerCase();
+    return this.list().find((entry) => entry.word.toLocaleLowerCase() === normalized) ?? null;
   }
 }

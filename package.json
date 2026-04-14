@@ -11,9 +11,7 @@
     "package": "npm run build:native:key-listener && electron-forge package",
     "make": "npm run build:native:key-listener && electron-forge make",
     "lint": "eslint --ext .ts,.tsx .",
-    "typecheck": "tsc --noEmit",
-    "eval:stt:doctor": "node scripts/eval-stt-doctor.mjs",
-    "eval:stt": "node scripts/eval-stt.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "license": "MIT",

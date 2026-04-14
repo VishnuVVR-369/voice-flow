@@ -7,17 +7,20 @@ const MAX_SELECTED_TEXT = 1000;
 const JXA_SCRIPT = `
 const se = Application("System Events");
 const frontApp = se.processes.whose({frontmost: true})[0];
-const appName = frontApp.name();
-let winTitle = "";
-let selText = "";
-let elemRole = "";
-try { winTitle = frontApp.windows[0].name(); } catch(e) {}
+const context = {
+  appName: "",
+  windowTitle: "",
+  selectedText: "",
+  elementRole: "",
+};
+try { context.appName = String(frontApp.name() || ""); } catch(e) {}
+try { context.windowTitle = String(frontApp.windows[0].name() || ""); } catch(e) {}
 try {
   const focused = frontApp.attributes["AXFocusedUIElement"].value();
-  try { selText = focused.attributes["AXSelectedText"].value(); } catch(e) {}
-  try { elemRole = focused.attributes["AXRole"].value(); } catch(e) {}
+  try { context.selectedText = String(focused.attributes["AXSelectedText"].value() || ""); } catch(e) {}
+  try { context.elementRole = String(focused.attributes["AXRole"].value() || ""); } catch(e) {}
 } catch(e) {}
-appName + "|||" + winTitle + "|||" + selText + "|||" + elemRole;
+JSON.stringify(context);
 `;
 
 export function captureCursorContext(): Promise<CursorContext | null> {
@@ -60,15 +63,26 @@ export function captureCursorContext(): Promise<CursorContext | null> {
         return;
       }
 
-      const parts = stdout.trim().split('|||');
-      const context: CursorContext = {
-        appName: parts[0] ?? '',
-        windowTitle: parts[1] ?? '',
-        selectedText: (parts[2] ?? '').slice(0, MAX_SELECTED_TEXT),
-        elementRole: parts[3] ?? '',
-      };
-      console.log(`[ContextCapture] app=${context.appName}, window="${context.windowTitle.slice(0, 80)}", selectedText=${context.selectedText.length} chars, role=${context.elementRole}`);
-      done(context);
+      const rawOutput = stdout.trim();
+      if (!rawOutput) {
+        done(null);
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(rawOutput) as Partial<CursorContext>;
+        const context: CursorContext = {
+          appName: typeof parsed.appName === 'string' ? parsed.appName : '',
+          windowTitle: typeof parsed.windowTitle === 'string' ? parsed.windowTitle : '',
+          selectedText: typeof parsed.selectedText === 'string' ? parsed.selectedText.slice(0, MAX_SELECTED_TEXT) : '',
+          elementRole: typeof parsed.elementRole === 'string' ? parsed.elementRole : '',
+        };
+        console.log(`[ContextCapture] app=${context.appName}, window="${context.windowTitle.slice(0, 80)}", selectedText=${context.selectedText.length} chars, role=${context.elementRole}`);
+        done(context);
+      } catch (error) {
+        console.warn('[ContextCapture] Failed to parse JXA output:', error instanceof Error ? error.message : error);
+        done(null);
+      }
     });
 
     child.stdin.write(JXA_SCRIPT);

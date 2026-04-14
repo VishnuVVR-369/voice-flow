@@ -30,6 +30,13 @@ export interface DictionaryWord {
   created_at: string;
 }
 
+export interface DictionaryAddResult {
+  success: boolean;
+  entry?: DictionaryWord;
+  duplicate?: boolean;
+  error?: string;
+}
+
 // History types
 export type HistoryFilterMode = 'all' | SessionMode;
 
@@ -131,7 +138,7 @@ export interface ElectronAPI {
 
   // Dictionary
   dictionaryList: () => Promise<DictionaryWord[]>;
-  dictionaryAdd: (word: string) => Promise<DictionaryWord>;
+  dictionaryAdd: (word: string) => Promise<DictionaryAddResult>;
   dictionaryDelete: (id: string) => Promise<{ success: boolean }>;
 
   // History

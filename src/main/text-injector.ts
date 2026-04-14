@@ -8,6 +8,13 @@ const APP_RESTORE_SETTLE_MS = 120;
 const PASTE_DELAY_MS = 50;
 const CURSOR_COLLAPSE_SETTLE_MS = 40;
 
+export type InjectResultStatus = 'success' | 'skipped' | 'failed';
+
+export interface InjectResult {
+  status: InjectResultStatus;
+  reason?: string;
+}
+
 export class TextInjector {
   private lastInjectTime = 0;
   private isInjecting = false;
@@ -18,19 +25,25 @@ export class TextInjector {
     text: string,
     context: CursorContext | null = null,
     options: { pasteBehavior?: AskPasteBehavior } = {},
-  ): Promise<void> {
+  ): Promise<InjectResult> {
     const now = Date.now();
 
     // Guard 1: concurrent / rapid-fire
     if (this.isInjecting || now - this.lastInjectTime < MIN_INJECT_INTERVAL_MS) {
       console.log(`[TextInjector] Skipping — guard:interval (isInjecting=${this.isInjecting}, interval=${now - this.lastInjectTime}ms)`);
-      return;
+      return {
+        status: 'skipped',
+        reason: 'Paste skipped because another inject was already running or triggered too quickly.',
+      };
     }
 
     // Guard 2: same content within dedup window
     if (text === this.lastInjectedText && now - this.lastInjectedAt < DEDUP_WINDOW_MS) {
       console.log(`[TextInjector] Skipping — guard:dedup (same text ${now - this.lastInjectedAt}ms ago)`);
-      return;
+      return {
+        status: 'skipped',
+        reason: 'Paste skipped because the same text was already injected a moment ago.',
+      };
     }
 
     this.isInjecting = true;
@@ -54,10 +67,15 @@ export class TextInjector {
       setTimeout(() => {
         clipboard.writeText(previousClipboard);
       }, 500);
+      return { status: 'success' };
     } catch (error) {
       console.error('[TextInjector] Paste failed:', error);
       // Still restore clipboard on failure
       clipboard.writeText(previousClipboard);
+      return {
+        status: 'failed',
+        reason: error instanceof Error ? error.message : 'Paste failed.',
+      };
     } finally {
       this.isInjecting = false;
     }
