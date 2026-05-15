@@ -1,132 +1,246 @@
 @import "tailwindcss";
 
 :root {
-  /* Core palette — editorial paper */
-  --color-paper: #f5efe6;
-  --color-paper-deep: #efe6d8;
-  --color-paper-soft: #faf5ec;
+  /* ── Surface palette ──────────────────────────────────── */
+  --color-ink: #070707;
+  --color-ink-deep: #050505;
+  --color-ink-raised: #0c0c0c;
+  --color-ink-elevated: #111110;
 
-  --color-ink: #141210;
-  --color-ink-soft: #3b342c;
-  --color-ink-muted: #6b6258;
-  --color-ink-faint: #a39a8c;
+  /* Stone scale (mirrors Tailwind's stone hues, locally available
+     for inline styles & svg fills) */
+  --color-stone-100: #f5f5f4;
+  --color-stone-300: #d6d3d1;
+  --color-stone-400: #a8a29e;
+  --color-stone-500: #78716c;
+  --color-stone-600: #57534e;
+  --color-stone-700: #44403c;
+  --color-stone-800: #292524;
+  --color-stone-900: #1c1917;
 
-  --color-rule: #1b1816;
-
-  /* THE accent — saturated vermillion. Solid, never gradient. */
-  --color-coral: #e04a2b;
-  --color-coral-deep: #b83a20;
-  --color-coral-tint: #fae3da;
-  --color-strike: #c8442b;
+  /* THE accent — warm amber, used solo and via gradient with orange */
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-orange-400: #fb923c;
+  --color-orange-500: #f97316;
 
   /* Type stack */
-  --font-display: var(--font-fraunces);
+  --font-display: var(--font-geist-sans);
   --font-serif: var(--font-instrument-serif);
 }
 
 @theme inline {
-  --color-background: var(--color-paper);
-  --color-foreground: var(--color-ink);
-  --color-accent: var(--color-coral);
+  --color-background: var(--color-ink);
+  --color-foreground: var(--color-stone-100);
+  --color-accent: var(--color-amber-500);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-instrument-serif);
-  --font-display: var(--font-fraunces);
+  --font-display: var(--font-geist-sans);
 }
 
 html,
 body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
+  background-color: var(--color-ink);
+  color: var(--color-stone-100);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Selection — coral wash, ink-coral text */
+/* Selection — amber wash on dark */
 ::selection {
-  background: var(--color-coral-tint);
-  color: var(--color-coral-deep);
+  background: rgba(245, 158, 11, 0.28);
+  color: var(--color-amber-200);
 }
 
-/* Editorial scrollbar — narrow, ink-faint thumb, paper track */
+/* Custom scrollbar — quiet, accent on hover */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-paper);
+  background: var(--color-ink);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-ink-faint);
-  border: 2px solid var(--color-paper);
-  border-radius: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-ink-muted);
+  background: rgba(245, 158, 11, 0.35);
 }
 
-/* Focus ring — coral, generous offset (key accessibility detail) */
+/* Focus ring — amber, generous */
 *:focus-visible {
-  outline: 2px solid var(--color-coral);
-  outline-offset: 2px;
-  border-radius: 1px;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.45);
+  border-radius: 6px;
 }
 
-/* ─── Section frame ─────────────────────────────────────── */
+/* ─── Layout shell ───────────────────────────────────── */
 .section {
   position: relative;
-  padding-top: clamp(96px, 14vw, 200px);
-  padding-bottom: clamp(96px, 14vw, 200px);
+  padding-top: clamp(80px, 11vw, 160px);
+  padding-bottom: clamp(80px, 11vw, 160px);
+  isolation: isolate;
 }
 
 .container-x {
   width: 100%;
-  max-width: 1280px;
+  max-width: 1240px;
   margin-inline: auto;
   padding-inline: clamp(20px, 4vw, 40px);
 }
 
-/* Full-bleed break-out from container */
 .bleed {
   margin-inline: calc(50% - 50vw);
   padding-inline: clamp(20px, 4vw, 40px);
 }
 
-/* 12-column asymmetric grid */
 .grid-editorial {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
   column-gap: clamp(16px, 2vw, 32px);
 }
 
-/* ─── Typography utilities ──────────────────────────────── */
+/* ─── Background atmosphere ─────────────────────────── */
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.bg-gridlines {
+  background-image: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.bloom-amber-lg {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(245, 158, 11, 0.18) 0%,
+    rgba(245, 158, 11, 0.06) 35%,
+    transparent 70%
+  );
+  filter: blur(80px);
+}
+
+/* ─── Typography utilities ──────────────────────────── */
 .headline {
-  font-family: var(--font-fraunces), Georgia, serif;
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  line-height: 0.92;
-  font-variation-settings: "SOFT" 30, "opsz" 144;
-  font-feature-settings: "ss01", "liga", "dlig";
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.96;
+  font-feature-settings: "ss01", "ss02", "cv11";
 }
 
 .headline-md {
-  font-family: var(--font-fraunces), Georgia, serif;
-  font-weight: 400;
-  letter-spacing: -0.022em;
-  line-height: 0.96;
-  font-variation-settings: "SOFT" 40, "opsz" 96;
-  font-feature-settings: "ss01", "liga", "dlig";
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  font-feature-settings: "ss01", "ss02", "cv11";
 }
 
 .serif-italic {
   font-family: var(--font-instrument-serif), Georgia, serif;
   font-style: italic;
   font-weight: 400;
-  letter-spacing: -0.01em;
-  color: var(--color-coral);
+  letter-spacing: -0.005em;
+  font-feature-settings: "dlig", "liga", "ss01";
 }
 
-.italic-lig {
-  font-feature-settings: "dlig", "liga", "ss01";
-  font-variant-ligatures: discretionary-ligatures;
+/* Amber→orange gradient text — used sparingly on highlight words */
+.text-grad-amber {
+  background: linear-gradient(
+    115deg,
+    var(--color-amber-200) 0%,
+    var(--color-amber-400) 40%,
+    var(--color-orange-400) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  background-size: 200% 100%;
+  background-position: 0% 0;
+  animation: amber-shift 9s ease-in-out infinite;
+}
+
+@keyframes amber-shift {
+  0%,
+  100% {
+    background-position: 0% 0;
+  }
+  50% {
+    background-position: 100% 0;
+  }
+}
+
+.mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-feature-settings: "ss02";
+}
+
+/* Mono label / eyebrow — letter-spaced uppercase pill text */
+.mast {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-stone-500);
+}
+
+/* Eyebrow pill — chrome'd amber chip used above titles */
+.eyebrow-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  background: rgba(245, 158, 11, 0.07);
+  padding: 6px 14px 6px 12px;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-amber-300);
+  backdrop-filter: blur(8px);
+}
+
+.eyebrow-chip__dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-amber-400);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.8);
+}
+.eyebrow-chip__dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.4);
+  animation: dot-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes dot-ping {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  80%,
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
 }
 
 .numeral {
@@ -134,43 +248,18 @@ body {
   font-feature-settings: "ss01", "tnum";
 }
 
-.mono {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-}
-
 .body-prose {
   font-family: var(--font-geist-sans);
   font-size: 17px;
-  line-height: 1.6;
-  letter-spacing: -0.003em;
-  color: var(--color-ink-soft);
-}
-
-/* Newspaper masthead label */
-.mast {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-ink-muted);
-}
-
-/* Eyebrow — bare text, no pill chrome, no dot */
-.eyebrow {
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-ink-muted);
-  display: inline-block;
+  line-height: 1.65;
+  letter-spacing: -0.005em;
+  color: var(--color-stone-400);
 }
 
 /* Editorial hairline rules */
 .rule {
   height: 1px;
-  background: var(--color-rule);
+  background: rgba(255, 255, 255, 0.06);
   width: 100%;
   display: block;
 }
@@ -180,40 +269,50 @@ body {
   background: linear-gradient(
     90deg,
     transparent,
-    var(--color-rule) 50%,
+    rgba(255, 255, 255, 0.08) 50%,
     transparent
   );
   width: 100%;
   display: block;
 }
 
-.rule-coral {
+.rule-amber {
   height: 1px;
-  background: var(--color-coral);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(245, 158, 11, 0.45) 50%,
+    transparent
+  );
   width: 100%;
   display: block;
 }
 
-/* ─── Diff utilities ────────────────────────────────────── */
+/* ─── Diff utilities (the morphing transcript) ──────── */
 .strike {
   text-decoration: line-through;
-  text-decoration-color: var(--color-strike);
+  text-decoration-color: rgba(120, 113, 108, 0.65);
   text-decoration-thickness: 1.5px;
   text-decoration-skip-ink: none;
   text-underline-offset: 0;
-  color: var(--color-ink-muted);
+  color: var(--color-stone-600);
 }
 
 .diff-add {
-  background: linear-gradient(transparent 62%, var(--color-coral-tint) 62%);
-  transition: background 1.2s ease 0.6s;
+  background-image: linear-gradient(
+    transparent 62%,
+    rgba(245, 158, 11, 0.28) 62%,
+    rgba(245, 158, 11, 0.28) 95%,
+    transparent 95%
+  );
+  transition: background-image 1.2s ease 0.6s;
 }
 
 .diff-add.decay {
-  background: linear-gradient(transparent 62%, transparent 62%);
+  background-image: linear-gradient(transparent 62%, transparent 62%);
 }
 
-/* ─── Keycap (light theme) ──────────────────────────────── */
+/* ─── Keycap ─────────────────────────────────────────── */
 .keycap {
   font-family: var(--font-geist-mono);
   font-size: 11px;
@@ -221,95 +320,141 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 5px 7px;
-  min-width: 22px;
-  height: 22px;
-  border-radius: 3px;
-  background: var(--color-paper);
-  border: 1px solid var(--color-ink-faint);
-  border-bottom: 2px solid var(--color-ink-muted);
-  color: var(--color-ink-soft);
+  padding: 5px 8px;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.16);
+  color: var(--color-stone-300);
   letter-spacing: 0;
 }
 
-/* ─── Buttons — physical, press-down feel ───────────────── */
+/* ─── Buttons ────────────────────────────────────────── */
 .btn-primary {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  background: var(--color-coral);
-  color: #fff;
-  border-radius: 4px;
-  padding: 14px 24px;
+  justify-content: center;
+  gap: 9px;
+  background: var(--color-amber-500);
+  color: var(--color-ink);
+  border-radius: 999px;
+  padding: 14px 26px;
   font-family: var(--font-geist-sans);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 14.5px;
   letter-spacing: -0.005em;
   border: none;
-  box-shadow: 0 1px 0 var(--color-coral-deep);
+  box-shadow:
+    0 25px 60px -22px rgba(245, 158, 11, 0.85),
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 0 0 1px rgba(245, 158, 11, 0.4);
   transition:
-    transform 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.18s cubic-bezier(0.4, 0, 0.2, 1),
-    background 0.18s ease;
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    background 0.2s ease;
   cursor: pointer;
 }
 .btn-primary:hover {
-  background: var(--color-coral-deep);
+  background: var(--color-amber-400);
   transform: translateY(-1px);
-  box-shadow: 0 3px 0 #8c2c18;
+  box-shadow:
+    0 30px 80px -18px rgba(245, 158, 11, 0.7),
+    0 1px 0 rgba(255, 255, 255, 0.22) inset,
+    0 0 0 1px rgba(245, 158, 11, 0.55);
 }
 .btn-primary:active {
   transform: translateY(0);
-  box-shadow: 0 0 0 var(--color-coral-deep);
 }
 
 .btn-ghost {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  background: transparent;
-  border: 1px solid var(--color-ink);
-  color: var(--color-ink);
-  border-radius: 4px;
-  padding: 13px 23px;
+  justify-content: center;
+  gap: 9px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-stone-200, #e7e5e4);
+  border-radius: 999px;
+  padding: 13px 25px;
   font-family: var(--font-geist-sans);
   font-weight: 500;
   font-size: 14.5px;
   letter-spacing: -0.005em;
   transition:
     background 0.2s ease,
+    border-color 0.2s ease,
     color 0.2s ease;
   cursor: pointer;
+  backdrop-filter: blur(8px);
 }
 .btn-ghost:hover {
-  background: var(--color-ink);
-  color: var(--color-paper);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
 }
 
-/* Text link with underline-reveal from left */
+/* Text link — gradient underline reveal */
 .text-link {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: var(--color-ink);
+  gap: 8px;
+  color: var(--color-stone-300);
   font-family: var(--font-geist-sans);
   font-weight: 500;
   font-size: 14.5px;
   letter-spacing: -0.005em;
-  background-image: linear-gradient(var(--color-coral), var(--color-coral));
+  background-image: linear-gradient(
+    90deg,
+    var(--color-amber-400),
+    var(--color-orange-400)
+  );
   background-repeat: no-repeat;
   background-position: 0 100%;
   background-size: 0% 1.5px;
   padding-bottom: 2px;
-  transition: background-size 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    background-size 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.2s ease;
 }
 .text-link:hover {
   background-size: 100% 1.5px;
+  color: #fff;
 }
 
-/* ─── Animations ────────────────────────────────────────── */
+/* Card — generic raised surface, used widely */
+.card-raised {
+  background: rgba(28, 25, 23, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  transition:
+    transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.25s ease,
+    background 0.25s ease;
+}
+.card-raised:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(28, 25, 23, 0.6);
+}
+
+/* Quiet dotted divider */
+.divider-dots {
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.12) 1px,
+    transparent 1.5px
+  );
+  background-size: 8px 8px;
+  background-repeat: repeat-x;
+  background-position: center;
+  height: 8px;
+}
+
+/* ─── Animations ─────────────────────────────────────── */
 @keyframes blink-cursor {
   0%,
   50% {
@@ -324,7 +469,7 @@ body {
 @keyframes wave-bar {
   0%,
   100% {
-    transform: scaleY(0.25);
+    transform: scaleY(0.22);
   }
   50% {
     transform: scaleY(1);
@@ -333,11 +478,11 @@ body {
 
 @keyframes pulse-ring {
   0% {
-    transform: scale(0.95);
-    opacity: 0.5;
+    transform: scale(0.9);
+    opacity: 0.6;
   }
   70% {
-    transform: scale(1.4);
+    transform: scale(1.6);
     opacity: 0;
   }
   100% {
@@ -345,13 +490,35 @@ body {
   }
 }
 
-@keyframes caret-step {
+@keyframes float-y {
   0%,
   100% {
-    opacity: 1;
+    transform: translateY(0);
   }
   50% {
-    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes shimmer-x {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes orb-drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(40px, -30px);
+  }
+  66% {
+    transform: translate(-30px, 40px);
   }
 }
 
@@ -360,6 +527,12 @@ body {
 }
 .animate-pulse-ring {
   animation: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.animate-float {
+  animation: float-y 6s ease-in-out infinite;
+}
+.animate-drift {
+  animation: orb-drift 18s ease-in-out infinite;
 }
 
 /* Honor reduced motion */
@@ -374,7 +547,7 @@ body {
   }
 }
 
-/* ─── Window chrome dots ────────────────────────────────── */
+/* ─── Window chrome dots ─────────────────────────────── */
 .win-dot {
   width: 11px;
   height: 11px;
@@ -382,7 +555,7 @@ body {
   display: inline-block;
 }
 
-/* ─── Hanging quotes (editorial detail) ─────────────────── */
+/* Hanging quotes — editorial detail */
 .hang-quote {
   hanging-punctuation: first;
   quotes: "\201C" "\201D" "\2018" "\2019";

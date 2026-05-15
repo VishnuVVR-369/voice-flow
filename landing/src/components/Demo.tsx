@@ -34,7 +34,7 @@ const BEATS: Beat[] = [
     title: "Speak. We listen properly.",
     body:
       "AudioWorklet capture at native sample rate, streamed to Groq's Whisper-large-v3. Your half-sentences, asides, code names — all of it lands. The pill stays out of your way: always-on-top, click-through, breathing with your voice.",
-    spec: "Whisper-large-v3 · 240 ms first token",
+    spec: "Whisper-large-v3 · 240ms first token",
   },
   {
     n: "03",
@@ -42,7 +42,7 @@ const BEATS: Beat[] = [
     title: "We clean the rough edges.",
     body:
       "A second pass through an LLM strips filler, fixes punctuation, capitalizes proper nouns, and reformats lists, code identifiers, and email greetings — informed by the app you're typing into.",
-    spec: "App-aware · ~400 ms",
+    spec: "App-aware polish · ~400ms",
   },
   {
     n: "04",
@@ -59,21 +59,47 @@ const FOOTNOTES = [
     label: "Custom dictionary",
     body:
       "Teach the polish your jargon — product names, internal acronyms, framework slang.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      </svg>
+    ),
   },
   {
     label: "Two modes",
     body:
       "Toggle for long thoughts. Hold for quick zaps. Two shortcuts, one muscle memory.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+        <rect x="3" y="8" width="18" height="8" rx="4" />
+        <circle cx="8" cy="12" r="2.5" fill="currentColor" />
+      </svg>
+    ),
   },
   {
     label: "Local history",
     body:
       "Every dictation saved to your Mac as plain JSON. Searchable. Deletable. Yours.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+        <ellipse cx="12" cy="5" rx="9" ry="3" />
+        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+      </svg>
+    ),
   },
   {
-    label: "Whisper-large-v3",
+    label: "Multilingual",
     body:
       "English by default. Auto-detect across 90+ languages — including code-mixed speech.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18" />
+        <path d="M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+      </svg>
+    ),
   },
 ];
 
@@ -86,9 +112,11 @@ export function Demo() {
     offset: ["start start", "end end"],
   });
 
-  const stepValue = useTransform(scrollYProgress, [0.05, 0.32, 0.58, 0.84], [
-    0, 1, 2, 3,
-  ]);
+  const stepValue = useTransform(
+    scrollYProgress,
+    [0.05, 0.32, 0.58, 0.84],
+    [0, 1, 2, 3]
+  );
 
   useMotionValueEvent(stepValue, "change", (v) => {
     const next = Math.min(3, Math.max(0, Math.round(v)));
@@ -96,28 +124,24 @@ export function Demo() {
   });
 
   return (
-    <section
-      id="demo"
-      ref={sectionRef}
-      className="relative"
-      style={{ background: "var(--color-paper)" }}
-    >
-      {/* Section header */}
-      <div className="container-x pt-[clamp(96px,14vw,200px)]">
-        <EditorialMast>WORKFLOW · LIVE</EditorialMast>
-        <div className="mt-8 grid-editorial">
-          <h2
-            className="headline-md col-span-12 md:col-span-7"
-            style={{ fontSize: "clamp(40px, 5.5vw, 72px)" }}
-          >
-            Five seconds.
-            <br />
-            <span className="serif-italic italic-lig">
-              Four moves, executed.
-            </span>
-          </h2>
+    <section id="demo" ref={sectionRef} className="relative section">
+      <div className="container-x">
+        {/* Section header */}
+        <div className="grid-editorial">
+          <div className="col-span-12 md:col-span-7">
+            <EditorialMast variant="chip">WORKFLOW — LIVE</EditorialMast>
+            <h2
+              className="headline-md mt-6 text-balance"
+              style={{ fontSize: "clamp(36px, 5vw, 64px)" }}
+            >
+              Four moves.{" "}
+              <span className="serif-italic text-grad-amber">
+                Five seconds.
+              </span>
+            </h2>
+          </div>
           <p
-            className="body-prose mt-6 md:mt-0 md:col-start-9 md:col-span-4 self-end"
+            className="body-prose col-span-12 md:col-span-5 self-end mt-4 md:mt-0"
             style={{ maxWidth: "44ch" }}
           >
             A complete dictation is four discrete beats — trigger, capture,
@@ -125,95 +149,101 @@ export function Demo() {
             Scroll to watch each one move.
           </p>
         </div>
-        <span className="rule mt-12" aria-hidden />
-      </div>
 
-      {/* Scroll-driven narrative */}
-      <div className="container-x mt-10">
-        <div className="grid-editorial relative">
-          {/* Left column: 4 beats */}
-          <div className="col-span-12 md:col-span-6 lg:col-span-5">
-            {BEATS.map((b, i) => (
-              <BeatBlock key={b.n} beat={b} index={i} activeIndex={step} />
-            ))}
-          </div>
+        <span className="rule mt-14" aria-hidden />
 
-          {/* Right column: sticky stage */}
-          <div className="hidden md:block md:col-span-6 md:col-start-7 lg:col-span-6 lg:col-start-7">
-            <div
-              className="sticky"
-              style={{
-                top: "18vh",
-                height: "64vh",
-              }}
-            >
-              <Stage step={step} />
+        {/* Scroll-driven narrative */}
+        <div className="mt-12">
+          <div className="grid-editorial relative">
+            {/* Left rail with active marker */}
+            <div className="hidden md:block md:col-span-1">
+              <div
+                className="sticky w-full"
+                style={{ top: "30vh", height: "32vh" }}
+              >
+                <div className="relative h-full w-px mx-auto bg-white/[0.06]">
+                  <motion.div
+                    className="absolute left-1/2 -translate-x-1/2 w-px bg-gradient-to-b from-amber-400/0 via-amber-400 to-amber-400/0"
+                    animate={{
+                      top: `${step * 25}%`,
+                      height: "25%",
+                    }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Beat blocks */}
+            <div className="col-span-12 md:col-span-5">
+              {BEATS.map((b, i) => (
+                <BeatBlock key={b.n} beat={b} index={i} activeIndex={step} />
+              ))}
+            </div>
+
+            {/* Sticky stage on the right */}
+            <div className="hidden md:block md:col-span-6">
+              <div
+                className="sticky"
+                style={{ top: "18vh", height: "64vh" }}
+              >
+                <Stage step={step} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Pull quote */}
-      <div className="container-x mt-[clamp(80px,10vw,140px)]">
-        <span className="rule-fade" aria-hidden />
-        <div className="grid-editorial mt-12">
-          <blockquote
-            className="hang-quote col-span-12 md:col-start-2 md:col-span-10 text-balance"
-            style={{
-              fontFamily: "var(--font-fraunces), Georgia, serif",
-              fontStyle: "italic",
-              fontSize: "clamp(28px, 4.5vw, 56px)",
-              lineHeight: 1.18,
-              letterSpacing: "-0.018em",
-              color: "var(--color-ink)",
-              fontVariationSettings: '"SOFT" 60, "opsz" 80',
-            }}
-          >
-            <span style={{ color: "var(--color-coral)" }}>“</span>
-            Five seconds. Zero context switches.{" "}
-            <span style={{ color: "var(--color-coral)" }}>
-              The keyboard generation finally got an interface.
-            </span>
-            <span style={{ color: "var(--color-coral)" }}>”</span>
-          </blockquote>
-        </div>
-        <span className="rule-fade mt-12" aria-hidden />
-      </div>
-
-      {/* Footnote-style details coda */}
-      <div className="container-x mt-[clamp(60px,8vw,100px)] pb-[clamp(60px,8vw,120px)]">
-        <EditorialMast>FOOTNOTES</EditorialMast>
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10">
-          {FOOTNOTES.map((f, i) => (
-            <motion.div
-              key={f.label}
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.55, delay: i * 0.08 }}
+        {/* Pull quote */}
+        <div className="mt-[clamp(80px,10vw,140px)]">
+          <span className="rule-fade" aria-hidden />
+          <div className="grid-editorial mt-12">
+            <blockquote
+              className="hang-quote col-span-12 md:col-start-2 md:col-span-10 text-balance text-center"
+              style={{
+                fontFamily: "var(--font-instrument-serif), Georgia, serif",
+                fontStyle: "italic",
+                fontSize: "clamp(28px, 4.2vw, 52px)",
+                lineHeight: 1.2,
+                letterSpacing: "-0.018em",
+                color: "var(--color-stone-100)",
+              }}
             >
-              <div
-                className="mast"
-                style={{ color: "var(--color-coral)" }}
+              <span className="text-amber-300">&ldquo;</span>
+              Five seconds. Zero context switches.{" "}
+              <span className="text-grad-amber">
+                The keyboard generation finally got an interface.
+              </span>
+              <span className="text-amber-300">&rdquo;</span>
+            </blockquote>
+          </div>
+          <span className="rule-fade mt-12" aria-hidden />
+        </div>
+
+        {/* Footnotes */}
+        <div className="mt-[clamp(60px,8vw,100px)]">
+          <EditorialMast variant="chip">EXTRAS</EditorialMast>
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {FOOTNOTES.map((f, i) => (
+              <motion.div
+                key={f.label}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.55, delay: i * 0.08 }}
+                className="card-raised group p-5"
               >
-                №{String(i + 1).padStart(2, "0")} · {f.label}
-              </div>
-              <p
-                className="mt-3"
-                style={{
-                  fontFamily: "var(--font-fraunces)",
-                  fontStyle: "italic",
-                  fontSize: 18,
-                  lineHeight: 1.45,
-                  letterSpacing: "-0.01em",
-                  color: "var(--color-ink)",
-                  fontVariationSettings: '"SOFT" 30, "opsz" 24',
-                }}
-              >
-                {f.body}
-              </p>
-            </motion.div>
-          ))}
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/[0.08] text-amber-300 transition-colors group-hover:bg-amber-500/[0.12] group-hover:border-amber-500/30">
+                  {f.icon}
+                </div>
+                <p className="text-[14px] font-semibold tracking-tight text-stone-100">
+                  {f.label}
+                </p>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-stone-500">
+                  {f.body}
+                </p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -239,59 +269,31 @@ function BeatBlock({
       }}
     >
       <motion.div
-        animate={{
-          opacity: isActive ? 1 : 0.32,
-        }}
+        animate={{ opacity: isActive ? 1 : 0.35 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="relative"
       >
-        {/* Coral active marker */}
-        <motion.span
-          aria-hidden
-          className="absolute"
-          animate={{
-            opacity: isActive ? 1 : 0,
-            scaleY: isActive ? 1 : 0.4,
-          }}
-          transition={{ duration: 0.4 }}
-          style={{
-            left: "calc(-1 * clamp(20px, 3vw, 40px))",
-            top: "0.15em",
-            bottom: "0.15em",
-            width: 3,
-            background: "var(--color-coral)",
-            transformOrigin: "center",
-          }}
-        />
-
-        <div
-          className="mast flex items-center gap-3"
-          style={{ color: "var(--color-coral)" }}
-        >
+        <div className="flex items-center gap-3 text-amber-300">
           <span
-            className="numeral"
-            style={{
-              fontFamily: "var(--font-fraunces)",
-              fontSize: 13,
-              fontWeight: 400,
-            }}
+            className="numeral mono inline-flex items-center justify-center rounded-md border border-amber-500/30 bg-amber-500/[0.08] px-2 py-0.5 text-[11px] font-medium tracking-[0.16em]"
           >
             {beat.n}
           </span>
-          <span style={{ color: "var(--color-ink-faint)" }}>/</span>
-          <span>{beat.label}</span>
+          <span
+            className="mono text-[11px] font-medium tracking-[0.18em] text-amber-400/90"
+          >
+            {beat.label}
+          </span>
+          <span className="h-px flex-1 bg-gradient-to-r from-amber-500/30 to-transparent" />
         </div>
 
         <h3
-          className="mt-5 text-balance"
+          className="mt-5 text-balance font-bold tracking-tight"
           style={{
-            fontFamily: "var(--font-fraunces)",
-            fontSize: "clamp(28px, 3.5vw, 44px)",
-            fontWeight: 400,
+            fontSize: "clamp(28px, 3.4vw, 44px)",
             lineHeight: 1.05,
-            letterSpacing: "-0.02em",
-            color: "var(--color-ink)",
-            fontVariationSettings: '"SOFT" 35, "opsz" 60',
+            letterSpacing: "-0.025em",
+            color: "var(--color-stone-100)",
           }}
         >
           {beat.title}
@@ -302,10 +304,9 @@ function BeatBlock({
         </p>
 
         <div
-          className="mt-6 mast"
-          style={{ color: "var(--color-ink-muted)" }}
+          className="mt-6 mono inline-flex items-center gap-2 text-[11px] tracking-[0.16em] uppercase text-stone-500"
         >
-          <span style={{ color: "var(--color-coral)" }}>▸ </span>
+          <span className="text-amber-400">▸</span>
           {beat.spec}
         </div>
 
@@ -321,43 +322,31 @@ function BeatBlock({
 function Stage({ step }: { step: number }) {
   return (
     <div
-      className="relative h-full w-full overflow-hidden"
+      className="relative h-full w-full overflow-hidden rounded-2xl border border-white/[0.07]"
       style={{
-        background: "var(--color-paper-soft)",
-        border: "1px solid var(--color-ink-faint)",
-        borderRadius: 6,
+        background:
+          "linear-gradient(180deg, #0a0a0a 0%, #050505 100%)",
+        boxShadow:
+          "0 60px 140px -30px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.02), inset 0 1px 0 rgba(255,255,255,0.04)",
       }}
     >
+      {/* Inner ambient bloom */}
+      <span
+        className="pointer-events-none absolute top-[-160px] left-1/2 -translate-x-1/2 h-[320px] w-[600px] rounded-full bg-amber-500/[0.06] blur-[100px]"
+        aria-hidden
+      />
+
       {/* Stage header */}
-      <div
-        className="flex items-center justify-between"
-        style={{
-          padding: "16px 20px",
-          borderBottom: "1px solid var(--color-ink-faint)",
-        }}
-      >
+      <div className="relative flex items-center justify-between gap-3 border-b border-white/[0.05] px-4 py-3">
         <div className="flex items-center gap-1.5">
-          <span className="win-dot" style={{ background: "#ff5f57" }} />
-          <span className="win-dot" style={{ background: "#febc2e" }} />
-          <span className="win-dot" style={{ background: "#28c840" }} />
+          <span className="win-dot" style={{ background: "#4b4845" }} />
+          <span className="win-dot" style={{ background: "#4b4845" }} />
+          <span className="win-dot" style={{ background: "#4b4845" }} />
         </div>
-        <AnimatePresence mode="wait">
-          <motion.span
-            key={step}
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.3 }}
-            className="mast"
-            style={{ color: "var(--color-ink-muted)" }}
-          >
-            #eng — Slack
-          </motion.span>
-        </AnimatePresence>
-        <span
-          className="mast"
-          style={{ color: "var(--color-ink-faint)" }}
-        >
+        <span className="rounded-md bg-white/[0.04] px-3 py-1 mono text-[11px] tracking-wider text-stone-500">
+          #eng — Slack
+        </span>
+        <span className="mono text-[10.5px] uppercase tracking-[0.18em] text-stone-600">
           {String(step + 1).padStart(2, "0")} / 04
         </span>
       </div>
@@ -365,68 +354,40 @@ function Stage({ step }: { step: number }) {
       {/* Stage body */}
       <div
         className="relative flex flex-col"
-        style={{ height: "calc(100% - 53px)" }}
+        style={{ height: "calc(100% - 49px)" }}
       >
         {/* Chat area */}
-        <div
-          className="flex-1 overflow-hidden"
-          style={{ padding: "28px 24px 0" }}
-        >
-          {/* Previous message (always visible context) */}
-          <div className="flex items-start gap-3 mb-5 opacity-60">
+        <div className="flex-1 overflow-hidden" style={{ padding: "28px 24px 0" }}>
+          {/* Previous message */}
+          <div className="flex items-start gap-3 mb-5 opacity-65">
             <span
-              className="inline-block flex-shrink-0"
-              style={{
-                width: 28,
-                height: 28,
-                borderRadius: 4,
-                background: "var(--color-ink-faint)",
-              }}
-            />
+              className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-stone-700/80 text-[10px] font-semibold text-stone-300"
+            >
+              A
+            </span>
             <div>
-              <div
-                className="mono"
-                style={{
-                  fontSize: 11,
-                  color: "var(--color-ink-muted)",
-                  letterSpacing: 0.5,
-                }}
-              >
+              <div className="mono text-[11px] tracking-wider text-stone-500">
                 alex · 2:14 PM
               </div>
-              <p
-                className="mt-1"
-                style={{
-                  fontSize: 14,
-                  color: "var(--color-ink-soft)",
-                  lineHeight: 1.5,
-                }}
-              >
+              <p className="mt-1 text-[14px] leading-relaxed text-stone-400">
                 any update on the auth fix timeline?
               </p>
             </div>
           </div>
 
-          {/* User message — fills in during step 4 */}
+          {/* User message */}
           <div className="flex items-start gap-3">
             <span
-              className="inline-block flex-shrink-0"
+              className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-[10px] font-semibold text-black"
               style={{
-                width: 28,
-                height: 28,
-                borderRadius: 4,
-                background: "var(--color-ink)",
+                background:
+                  "linear-gradient(135deg, var(--color-amber-400) 0%, var(--color-orange-500) 100%)",
               }}
-            />
+            >
+              Y
+            </span>
             <div className="flex-1">
-              <div
-                className="mono"
-                style={{
-                  fontSize: 11,
-                  color: "var(--color-ink-muted)",
-                  letterSpacing: 0.5,
-                }}
-              >
+              <div className="mono text-[11px] tracking-wider text-stone-500">
                 you · just now
               </div>
               <AnimatePresence mode="wait">
@@ -436,12 +397,7 @@ function Stage({ step }: { step: number }) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.4 }}
-                    className="mt-1"
-                    style={{
-                      fontSize: 14,
-                      color: "var(--color-ink)",
-                      lineHeight: 1.5,
-                    }}
+                    className="mt-1 text-[14px] leading-relaxed text-stone-100"
                   >
                     <TypedReveal text="We should ship the auth fix on Tuesday. Also — can you let the team know about the meeting on Friday?" />
                   </motion.p>
@@ -451,20 +407,14 @@ function Stage({ step }: { step: number }) {
                     initial={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="mt-1 mono"
-                    style={{
-                      fontSize: 13,
-                      color: "var(--color-ink-faint)",
-                    }}
+                    className="mt-1 mono italic text-[13px] text-stone-600"
                   >
-                    <span aria-hidden>│</span>{" "}
-                    <span className="italic">
-                      {step === 0
-                        ? "type a message…"
-                        : step === 1
-                        ? "listening…"
-                        : "polishing…"}
-                    </span>
+                    <span aria-hidden className="text-stone-500">│</span>{" "}
+                    {step === 0
+                      ? "type a message…"
+                      : step === 1
+                      ? "listening…"
+                      : "polishing…"}
                   </motion.p>
                 )}
               </AnimatePresence>
@@ -485,17 +435,12 @@ function Stage({ step }: { step: number }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                className="flex items-center gap-2.5"
+                className="flex items-center gap-2.5 rounded-full border border-white/[0.06] bg-white/[0.025] px-4 py-2 backdrop-blur-md"
               >
                 <span className="keycap">⌃</span>
-                <span style={{ color: "var(--color-ink-muted)" }}>+</span>
+                <span className="text-stone-500">+</span>
                 <span className="keycap">Space</span>
-                <span
-                  className="mast ml-2"
-                  style={{ color: "var(--color-ink-muted)" }}
-                >
-                  to dictate
-                </span>
+                <span className="mast ml-1.5 text-stone-500">to dictate</span>
               </motion.div>
             )}
             {step === 1 && <Pill key="capture" mode="recording" />}
@@ -503,14 +448,26 @@ function Stage({ step }: { step: number }) {
             {step === 3 && (
               <motion.span
                 key="pasted-mark"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4 }}
-                className="mast"
-                style={{ color: "var(--color-coral)" }}
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-4 py-1.5 mono text-[11px] tracking-[0.16em] uppercase text-emerald-300"
               >
-                <span aria-hidden>✓ </span>pasted in place
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Pasted in place
               </motion.span>
             )}
           </AnimatePresence>
@@ -528,94 +485,90 @@ function Pill({ mode }: { mode: "recording" | "polishing" }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -8, scale: 0.96 }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="relative inline-flex items-center gap-3 rounded-full px-4 py-2.5"
-      style={{
-        background: "var(--color-ink)",
-        boxShadow:
-          "0 30px 60px -25px rgba(20,18,16,0.5), 0 0 0 1px rgba(20,18,16,0.08)",
-      }}
+      className="relative"
     >
-      <span className="relative flex items-center">
-        {isRecording ? (
-          <>
-            <span
-              className="absolute inline-flex h-2.5 w-2.5 rounded-full animate-ping"
-              style={{ background: "rgba(224,74,43,0.6)" }}
-            />
-            <span
-              className="relative inline-flex h-2.5 w-2.5 rounded-full"
-              style={{ background: "var(--color-coral)" }}
-            />
-          </>
-        ) : (
+      {/* Halo */}
+      {isRecording && (
+        <>
           <span
-            className="relative inline-flex h-2.5 w-2.5 rounded-full"
+            className="absolute inset-[-25%] rounded-full animate-pulse-ring"
             style={{
-              background: "var(--color-coral)",
-              boxShadow: "0 0 10px var(--color-coral)",
-              animation: "blink-cursor 1s step-end infinite",
+              background:
+                "radial-gradient(circle, rgba(245,158,11,0.3) 0%, transparent 65%)",
             }}
           />
-        )}
-      </span>
-      <div style={{ color: "var(--color-paper)" }}>
-        <Waveform
-          bars={24}
-          height={22}
-          width={2.5}
-          gap={3}
-          active={isRecording}
-          color="currentColor"
-        />
-      </div>
-      <span
-        className="mono tabular-nums"
+          <span
+            className="absolute inset-[-25%] rounded-full animate-pulse-ring"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(245,158,11,0.2) 0%, transparent 65%)",
+              animationDelay: "1.2s",
+            }}
+          />
+        </>
+      )}
+
+      <div
+        className="relative inline-flex items-center gap-3 rounded-full px-4 py-2.5 backdrop-blur-md"
         style={{
-          fontSize: 11,
-          color: "rgba(245,239,230,0.85)",
-          letterSpacing: 1,
+          background:
+            "linear-gradient(180deg, rgba(28,25,23,0.85) 0%, rgba(12,12,12,0.95) 100%)",
+          boxShadow:
+            "0 30px 70px -20px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.07), 0 1px 0 rgba(255,255,255,0.06) inset, 0 0 30px rgba(245,158,11,0.1)",
         }}
       >
-        {isRecording ? "00:04" : "Polishing · 0.4s"}
-      </span>
-      <span
-        className="h-4 w-px"
-        style={{ background: "rgba(245,239,230,0.18)" }}
-      />
-      <span className="flex items-center gap-1.5">
+        <span className="relative flex items-center">
+          {isRecording ? (
+            <>
+              <span
+                className="absolute inline-flex h-2.5 w-2.5 rounded-full animate-ping"
+                style={{ background: "rgba(245,158,11,0.6)" }}
+              />
+              <span
+                className="relative inline-flex h-2.5 w-2.5 rounded-full"
+                style={{
+                  background: "var(--color-amber-400)",
+                  boxShadow: "0 0 10px rgba(245,158,11,0.9)",
+                }}
+              />
+            </>
+          ) : (
+            <span
+              className="relative inline-flex h-2.5 w-2.5 rounded-full"
+              style={{
+                background: "var(--color-amber-400)",
+                boxShadow: "0 0 12px var(--color-amber-400)",
+                animation: "blink-cursor 1s step-end infinite",
+              }}
+            />
+          )}
+        </span>
+        <div className="text-amber-300/95">
+          <Waveform
+            bars={24}
+            height={22}
+            width={2.5}
+            gap={3}
+            active={isRecording}
+            color="currentColor"
+          />
+        </div>
         <span
-          className="inline-flex items-center justify-center"
+          className="mono tabular-nums"
           style={{
-            fontFamily: "var(--font-geist-mono)",
-            fontSize: 10,
-            padding: "3px 6px",
-            minWidth: 22,
-            height: 20,
-            borderRadius: 3,
-            background: "rgba(245,239,230,0.08)",
-            border: "1px solid rgba(245,239,230,0.18)",
+            fontSize: 11,
             color: "rgba(245,239,230,0.85)",
+            letterSpacing: 1,
           }}
         >
-          ⌃
+          {isRecording ? "00:04" : "Polishing · 0.4s"}
         </span>
-        <span
-          className="inline-flex items-center justify-center"
-          style={{
-            fontFamily: "var(--font-geist-mono)",
-            fontSize: 10,
-            padding: "3px 6px",
-            minWidth: 22,
-            height: 20,
-            borderRadius: 3,
-            background: "rgba(245,239,230,0.08)",
-            border: "1px solid rgba(245,239,230,0.18)",
-            color: "rgba(245,239,230,0.85)",
-          }}
-        >
-          Space
+        <span className="h-4 w-px bg-white/[0.15]" />
+        <span className="flex items-center gap-1.5">
+          <span className="keycap">⌃</span>
+          <span className="keycap">Space</span>
         </span>
-      </span>
+      </div>
     </motion.div>
   );
 }
@@ -642,9 +595,10 @@ function TypedReveal({ text }: { text: string }) {
           style={{
             width: 2,
             height: "0.95em",
-            background: "var(--color-ink)",
+            background: "var(--color-amber-400)",
             verticalAlign: "middle",
             marginLeft: 2,
+            boxShadow: "0 0 6px rgba(245,158,11,0.6)",
           }}
         />
       )}
@@ -654,32 +608,27 @@ function TypedReveal({ text }: { text: string }) {
 
 function MobileStageCard({ step }: { step: number }) {
   return (
-    <div
-      className="relative w-full"
-      style={{
-        background: "var(--color-paper-soft)",
-        border: "1px solid var(--color-ink-faint)",
-        borderRadius: 6,
-        padding: "32px 20px",
-        minHeight: 180,
-      }}
-    >
-      <div className="flex items-center justify-center">
+    <div className="relative w-full rounded-2xl border border-white/[0.07] bg-[#0a0a0a] p-8" style={{ minHeight: 180 }}>
+      <span
+        className="pointer-events-none absolute top-[-80px] left-1/2 -translate-x-1/2 h-[160px] w-[280px] rounded-full bg-amber-500/[0.07] blur-[80px]"
+        aria-hidden
+      />
+      <div className="relative flex items-center justify-center">
         {step === 0 && (
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 rounded-full border border-white/[0.06] bg-white/[0.025] px-4 py-2 backdrop-blur-md">
             <span className="keycap">⌃</span>
-            <span style={{ color: "var(--color-ink-muted)" }}>+</span>
+            <span className="text-stone-500">+</span>
             <span className="keycap">Space</span>
           </div>
         )}
         {step === 1 && <Pill mode="recording" />}
         {step === 2 && <Pill mode="polishing" />}
         {step === 3 && (
-          <span
-            className="mast"
-            style={{ color: "var(--color-coral)" }}
-          >
-            <span aria-hidden>✓ </span>pasted in place
+          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-4 py-1.5 mono text-[11px] tracking-[0.16em] uppercase text-emerald-300">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Pasted in place
           </span>
         )}
       </div>

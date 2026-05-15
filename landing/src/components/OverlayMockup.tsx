@@ -8,7 +8,7 @@ type Props = {
   className?: string;
 };
 
-// Pixel-precise mockup of the floating macOS overlay pill — light/editorial theme.
+// Pixel-precise mockup of the floating macOS overlay pill — dark amber theme.
 export function OverlayMockup({
   state = "recording",
   caption,
@@ -26,17 +26,17 @@ export function OverlayMockup({
         {isRecording && (
           <>
             <span
-              className="absolute inset-0 rounded-full animate-pulse-ring"
+              className="absolute inset-[-30%] rounded-full animate-pulse-ring"
               style={{
                 background:
-                  "radial-gradient(circle, rgba(224,74,43,0.25) 0%, transparent 70%)",
+                  "radial-gradient(circle, rgba(245,158,11,0.32) 0%, transparent 65%)",
               }}
             />
             <span
-              className="absolute inset-0 rounded-full animate-pulse-ring"
+              className="absolute inset-[-30%] rounded-full animate-pulse-ring"
               style={{
                 background:
-                  "radial-gradient(circle, rgba(224,74,43,0.18) 0%, transparent 70%)",
+                  "radial-gradient(circle, rgba(245,158,11,0.22) 0%, transparent 65%)",
                 animationDelay: "1.2s",
               }}
             />
@@ -45,11 +45,12 @@ export function OverlayMockup({
 
         {/* The pill */}
         <div
-          className="relative flex items-center gap-3 rounded-full px-4 py-2.5"
+          className="relative flex items-center gap-3 rounded-full px-4 py-2.5 backdrop-blur-md"
           style={{
-            background: "var(--color-ink)",
+            background:
+              "linear-gradient(180deg, rgba(28,25,23,0.85) 0%, rgba(12,12,12,0.92) 100%)",
             boxShadow:
-              "0 30px 60px -20px rgba(20,18,16,0.3), 0 0 0 1px rgba(20,18,16,0.08), 0 1px 0 rgba(255,255,255,0.06) inset",
+              "0 30px 70px -20px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.06), 0 1px 0 rgba(255,255,255,0.06) inset, 0 0 30px rgba(245,158,11,0.08)",
           }}
         >
           {/* State indicator */}
@@ -58,11 +59,14 @@ export function OverlayMockup({
               <>
                 <span
                   className="absolute inline-flex h-2.5 w-2.5 rounded-full animate-ping"
-                  style={{ background: "rgba(224,74,43,0.6)" }}
+                  style={{ background: "rgba(245,158,11,0.6)" }}
                 />
                 <span
                   className="relative inline-flex h-2.5 w-2.5 rounded-full"
-                  style={{ background: "var(--color-coral)" }}
+                  style={{
+                    background: "var(--color-amber-400)",
+                    boxShadow: "0 0 10px rgba(245,158,11,0.9)",
+                  }}
                 />
               </>
             )}
@@ -70,8 +74,8 @@ export function OverlayMockup({
               <span
                 className="relative inline-flex h-2.5 w-2.5 rounded-full"
                 style={{
-                  background: "var(--color-coral)",
-                  boxShadow: "0 0 10px var(--color-coral)",
+                  background: "var(--color-amber-400)",
+                  boxShadow: "0 0 12px var(--color-amber-400)",
                   animation: "blink-cursor 1s step-end infinite",
                 }}
               />
@@ -79,13 +83,13 @@ export function OverlayMockup({
             {state === "idle" && (
               <span
                 className="relative inline-flex h-2.5 w-2.5 rounded-full"
-                style={{ background: "var(--color-ink-faint)" }}
+                style={{ background: "var(--color-stone-600)" }}
               />
             )}
           </span>
 
           {/* Waveform */}
-          <div style={{ color: "var(--color-paper)" }}>
+          <div className="text-amber-300/95">
             <Waveform
               bars={28}
               height={24}
@@ -108,54 +112,18 @@ export function OverlayMockup({
           </span>
 
           {/* Divider */}
-          <span
-            className="h-4 w-px"
-            style={{ background: "rgba(245,239,230,0.15)" }}
-          />
+          <span className="h-4 w-px bg-white/[0.1]" />
 
           {/* Hint */}
           <span className="flex items-center gap-1.5">
-            <span
-              className="inline-flex items-center justify-center"
-              style={{
-                fontFamily: "var(--font-geist-mono)",
-                fontSize: 11,
-                padding: "4px 6px",
-                minWidth: 22,
-                height: 22,
-                borderRadius: 3,
-                background: "rgba(245,239,230,0.08)",
-                border: "1px solid rgba(245,239,230,0.18)",
-                color: "rgba(245,239,230,0.85)",
-              }}
-            >
-              ⌃
-            </span>
-            <span
-              className="inline-flex items-center justify-center"
-              style={{
-                fontFamily: "var(--font-geist-mono)",
-                fontSize: 11,
-                padding: "4px 6px",
-                minWidth: 22,
-                height: 22,
-                borderRadius: 3,
-                background: "rgba(245,239,230,0.08)",
-                border: "1px solid rgba(245,239,230,0.18)",
-                color: "rgba(245,239,230,0.85)",
-              }}
-            >
-              Space
-            </span>
+            <span className="keycap">⌃</span>
+            <span className="keycap">Space</span>
           </span>
         </div>
       </div>
 
       {caption && (
-        <p
-          className="mast"
-          style={{ color: "var(--color-ink-muted)" }}
-        >
+        <p className="mast" style={{ color: "var(--color-stone-500)" }}>
           {caption}
         </p>
       )}

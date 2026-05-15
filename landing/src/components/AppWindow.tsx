@@ -2,56 +2,43 @@ import type { ReactNode } from "react";
 
 type Props = {
   title?: string;
-  variant?: "paper" | "ink";
+  variant?: "elevated" | "deep";
   children: ReactNode;
   className?: string;
 };
 
-// Simplified macOS window chrome — light editorial theme.
+// macOS window chrome — dark theme.
 export function AppWindow({
   title,
-  variant = "paper",
+  variant = "elevated",
   children,
   className = "",
 }: Props) {
-  const isInk = variant === "ink";
+  const isDeep = variant === "deep";
 
   return (
     <div
-      className={`relative overflow-hidden ${className}`}
+      className={`relative overflow-hidden rounded-2xl border ${
+        isDeep ? "border-white/[0.04]" : "border-white/[0.07]"
+      } ${className}`}
       style={{
-        background: isInk ? "var(--color-ink)" : "var(--color-paper-soft)",
-        border: isInk
-          ? "1px solid var(--color-ink)"
-          : "1px solid var(--color-ink-faint)",
-        borderRadius: 6,
-        boxShadow: isInk
-          ? "0 30px 60px -25px rgba(20,18,16,0.35)"
-          : "0 30px 60px -25px rgba(20,18,16,0.18)",
+        background: isDeep
+          ? "linear-gradient(180deg, #0a0a0a 0%, #050505 100%)"
+          : "linear-gradient(180deg, rgba(28,25,23,0.55) 0%, rgba(12,12,12,0.85) 100%)",
+        boxShadow:
+          "0 50px 120px -20px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.02), inset 0 1px 0 rgba(255,255,255,0.04)",
       }}
     >
-      {/* Title bar */}
       <div
-        className="flex items-center gap-3 px-4 py-3"
-        style={{
-          borderBottom: isInk
-            ? "1px solid rgba(245,239,230,0.1)"
-            : "1px solid var(--color-ink-faint)",
-        }}
+        className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]"
       >
         <div className="flex items-center gap-1.5">
-          <span className="win-dot" style={{ background: "#ff5f57" }} />
-          <span className="win-dot" style={{ background: "#febc2e" }} />
-          <span className="win-dot" style={{ background: "#28c840" }} />
+          <span className="win-dot" style={{ background: "#4b4845" }} />
+          <span className="win-dot" style={{ background: "#4b4845" }} />
+          <span className="win-dot" style={{ background: "#4b4845" }} />
         </div>
         {title && (
-          <span
-            className="mono ml-2 truncate"
-            style={{
-              fontSize: 11,
-              color: isInk ? "rgba(245,239,230,0.6)" : "var(--color-ink-muted)",
-            }}
-          >
+          <span className="mono ml-2 truncate text-[11px] text-stone-500">
             {title}
           </span>
         )}

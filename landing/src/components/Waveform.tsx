@@ -10,8 +10,8 @@ type Props = {
   color?: string;
 };
 
-// A purely-CSS animated bar visualizer. Heights and delays are deterministic
-// (seeded by index) so SSR matches client and there's no hydration flash.
+// CSS-only animated bar visualizer. Deterministic heights & delays
+// so SSR matches client (no hydration mismatch).
 export function Waveform({
   bars = 48,
   height = 56,
@@ -21,12 +21,9 @@ export function Waveform({
   className = "",
   color = "currentColor",
 }: Props) {
-  // Seeded pseudo-random pattern that *looks* organic but is deterministic.
-  // Round to a fixed precision so server and client serialize identically
-  // (browser CSSOM rounds long floats, which would otherwise trip hydration).
   const pattern = (i: number) => {
     const s = Math.sin(i * 12.9898) * 43758.5453;
-    return Math.round((s - Math.floor(s)) * 1e4) / 1e4; // 0..1, 4dp
+    return Math.round((s - Math.floor(s)) * 1e4) / 1e4;
   };
   const round = (n: number) => Math.round(n * 1e4) / 1e4;
 
@@ -38,8 +35,8 @@ export function Waveform({
     >
       {Array.from({ length: bars }).map((_, i) => {
         const seed = pattern(i);
-        const minH = round(0.18 + seed * 0.35);
-        const duration = round(0.8 + pattern(i + 99) * 0.9);
+        const minH = round(0.2 + seed * 0.35);
+        const duration = round(0.75 + pattern(i + 99) * 0.85);
         const delay = round(pattern(i + 7) * -1.4);
         return (
           <span
@@ -54,7 +51,7 @@ export function Waveform({
               animation: active
                 ? `wave-bar ${duration}s ease-in-out ${delay}s infinite`
                 : "none",
-              opacity: active ? 1 : 0.4,
+              opacity: active ? 1 : 0.35,
             }}
           />
         );
