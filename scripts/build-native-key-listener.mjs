@@ -6,9 +6,18 @@ const projectRoot = process.cwd();
 const manifestPath = path.join(projectRoot, 'native', 'global-key-listener', 'Cargo.toml');
 const resourcesDir = path.join(projectRoot, 'resources', 'binaries');
 
+const requestedArch = process.env.TARGET_ARCH;
+
 function resolveTargetTriple() {
   if (process.platform === 'darwin') {
-    return `${process.arch === 'arm64' ? 'aarch64' : 'x86_64'}-apple-darwin`;
+    const arch = requestedArch || process.arch;
+
+    if (arch !== 'arm64' && arch !== 'x64') {
+      console.error(`[build-native-key-listener] Unsupported macOS arch: ${arch}`);
+      process.exit(1);
+    }
+
+    return `${arch === 'arm64' ? 'aarch64' : 'x86_64'}-apple-darwin`;
   }
 
   if (process.platform === 'win32') {
