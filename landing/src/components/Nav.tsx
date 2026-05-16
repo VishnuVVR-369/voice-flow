@@ -81,7 +81,7 @@ export function Nav() {
               key={link.label}
               href={link.href}
               onMouseEnter={() => setHovered(link.id)}
-              {...(link.external
+              {...("external" in link && link.external
                 ? { target: "_blank", rel: "noopener noreferrer" }
                 : {})}
               className={`relative rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
