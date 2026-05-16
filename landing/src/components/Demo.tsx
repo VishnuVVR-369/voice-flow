@@ -10,6 +10,7 @@ import {
 } from "motion/react";
 import { EditorialMast } from "./EditorialMast";
 import { Waveform } from "./Waveform";
+import { SpotlightCard } from "./SpotlightCard";
 
 type Beat = {
   n: string;
@@ -129,25 +130,44 @@ export function Demo() {
         {/* Section header */}
         <div className="grid-editorial">
           <div className="col-span-12 md:col-span-7">
-            <EditorialMast variant="chip">WORKFLOW — LIVE</EditorialMast>
-            <h2
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.6 }}
+            >
+              <EditorialMast variant="chip">WORKFLOW — LIVE</EditorialMast>
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20, filter: "blur(6px)" }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{
+                duration: 0.95,
+                ease: [0.22, 1, 0.36, 1],
+                delay: 0.1,
+              }}
               className="headline-md mt-6 text-balance"
               style={{ fontSize: "clamp(36px, 5vw, 64px)" }}
             >
               Four moves.{" "}
-              <span className="serif-italic text-grad-amber">
+              <span className="serif-italic text-grad-amber amber-glow">
                 Five seconds.
               </span>
-            </h2>
+            </motion.h2>
           </div>
-          <p
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7, delay: 0.2 }}
             className="body-prose col-span-12 md:col-span-5 self-end mt-4 md:mt-0"
             style={{ maxWidth: "44ch" }}
           >
             A complete dictation is four discrete beats — trigger, capture,
             polish, paste — each tuned to disappear into your attention.
             Scroll to watch each one move.
-          </p>
+          </motion.p>
         </div>
 
         <span className="rule mt-14" aria-hidden />
@@ -221,26 +241,42 @@ export function Demo() {
 
         {/* Footnotes */}
         <div className="mt-[clamp(60px,8vw,100px)]">
-          <EditorialMast variant="chip">EXTRAS</EditorialMast>
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.6 }}
+          >
+            <EditorialMast variant="chip">EXTRAS</EditorialMast>
+          </motion.div>
           <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {FOOTNOTES.map((f, i) => (
               <motion.div
                 key={f.label}
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 22 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.55, delay: i * 0.08 }}
-                className="card-raised group p-5"
+                transition={{
+                  duration: 0.65,
+                  delay: i * 0.09,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
               >
-                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/[0.08] text-amber-300 transition-colors group-hover:bg-amber-500/[0.12] group-hover:border-amber-500/30">
-                  {f.icon}
-                </div>
-                <p className="text-[14px] font-semibold tracking-tight text-stone-100">
-                  {f.label}
-                </p>
-                <p className="mt-1.5 text-[13.5px] leading-relaxed text-stone-500">
-                  {f.body}
-                </p>
+                <SpotlightCard className="card-raised group h-full p-5">
+                  <motion.div
+                    whileHover={{ rotate: -6, scale: 1.08 }}
+                    transition={{ type: "spring", stiffness: 320, damping: 18 }}
+                    className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg border border-amber-500/20 bg-amber-500/[0.08] text-amber-300 transition-colors group-hover:bg-amber-500/[0.12] group-hover:border-amber-500/30"
+                  >
+                    {f.icon}
+                  </motion.div>
+                  <p className="text-[14px] font-semibold tracking-tight text-stone-100">
+                    {f.label}
+                  </p>
+                  <p className="mt-1.5 text-[13.5px] leading-relaxed text-stone-500">
+                    {f.body}
+                  </p>
+                </SpotlightCard>
               </motion.div>
             ))}
           </div>

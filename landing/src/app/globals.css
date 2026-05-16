@@ -50,6 +50,10 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* Selection — amber wash on dark */
 ::selection {
   background: rgba(245, 158, 11, 0.28);
@@ -427,6 +431,7 @@ body {
 
 /* Card — generic raised surface, used widely */
 .card-raised {
+  position: relative;
   background: rgba(28, 25, 23, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 20px;
@@ -440,6 +445,159 @@ body {
   transform: translateY(-3px);
   border-color: rgba(255, 255, 255, 0.12);
   background: rgba(28, 25, 23, 0.6);
+}
+
+/* Mouse-tracking spotlight: parent sets --mx, --my as %; child overlay
+   renders a soft amber spotlight that follows the cursor. */
+.spotlight {
+  position: relative;
+  isolation: isolate;
+}
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    420px circle at var(--mx, 50%) var(--my, 0%),
+    rgba(245, 158, 11, 0.14),
+    rgba(245, 158, 11, 0.04) 30%,
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  z-index: 0;
+}
+.spotlight:hover::before {
+  opacity: 1;
+}
+.spotlight > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Animated conic gradient border — wakes up on hover */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    rgba(245, 158, 11, 0) 0deg,
+    rgba(245, 158, 11, 0) 200deg,
+    rgba(245, 158, 11, 0.55) 270deg,
+    rgba(251, 146, 60, 0.55) 290deg,
+    rgba(245, 158, 11, 0) 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  animation: angle-spin 6s linear infinite;
+  pointer-events: none;
+}
+.gradient-border:hover::after {
+  opacity: 1;
+}
+@property --angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes angle-spin {
+  to {
+    --angle: 360deg;
+  }
+}
+
+/* Scroll progress bar (top of viewport) */
+.scroll-progress {
+  position: fixed;
+  inset: 0 auto auto 0;
+  height: 2px;
+  z-index: 60;
+  background: linear-gradient(
+    90deg,
+    var(--color-amber-400),
+    var(--color-orange-500)
+  );
+  transform-origin: 0 50%;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.55);
+  pointer-events: none;
+}
+
+/* Reveal helpers — used for word-staggered headlines */
+.reveal-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  line-height: 1.08;
+  padding-bottom: 0.06em;
+}
+
+/* Shimmering shine sweep — used for buttons / chips */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+.shine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 70%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.shine:hover::before {
+  transform: translateX(100%);
+}
+
+/* Magnetic anchor — parent provides --tx, --ty; child translates softly */
+.magnet {
+  display: inline-block;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translate3d(var(--tx, 0px), var(--ty, 0px), 0);
+  will-change: transform;
+}
+
+/* Glow shadow for highlight serif word */
+.amber-glow {
+  text-shadow:
+    0 0 30px rgba(245, 158, 11, 0.25),
+    0 0 90px rgba(245, 158, 11, 0.1);
+}
+
+/* Marquee for trust chips row (subtle drift, no infinite scroll) */
+@keyframes chip-rise {
+  0% {
+    transform: translateY(8px);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.chip-rise {
+  animation: chip-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Quiet dotted divider */
@@ -533,6 +691,45 @@ body {
 }
 .animate-drift {
   animation: orb-drift 18s ease-in-out infinite;
+}
+
+/* Slow rotating conic for hero atmosphere */
+@keyframes slow-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-slow-spin {
+  animation: slow-spin 40s linear infinite;
+}
+
+/* Gentle breath — used on subtle bloom elements */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+.animate-breathe {
+  animation: breathe 7s ease-in-out infinite;
+}
+
+/* Marquee — drifts horizontally for ambient ticker rows */
+@keyframes marquee-x {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+.animate-marquee {
+  animation: marquee-x 36s linear infinite;
 }
 
 /* Honor reduced motion */

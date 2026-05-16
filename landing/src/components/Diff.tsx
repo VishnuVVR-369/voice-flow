@@ -17,12 +17,12 @@ type State = {
   visibleRawCount: number;
 };
 
-const TYPE_INTERVAL = 130;
-const PAUSE_MS = 1000;
-const MORPH_MS = 1600;
-const SETTLED_MS = 2400;
-const FADE_MS = 500;
-const REDUCED_HOLD_MS = 5500;
+const TYPE_INTERVAL = 55;
+const PAUSE_MS = 420;
+const MORPH_MS = 850;
+const SETTLED_MS = 1700;
+const FADE_MS = 320;
+const REDUCED_HOLD_MS = 4200;
 
 type Renderable = {
   key: string;
@@ -399,7 +399,7 @@ export function Diff() {
                 initial={{ scaleX: 0, opacity: 0.9 }}
                 animate={{ scaleX: 1, opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
                 className="absolute"
                 aria-hidden
                 style={{

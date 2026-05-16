@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { EditorialMast } from "./EditorialMast";
+import { SpotlightCard } from "./SpotlightCard";
 
 const PRINCIPLES = [
   {
@@ -98,17 +99,38 @@ export function Choices() {
       <div className="container-x">
         <div className="grid-editorial">
           <div className="col-span-12 md:col-span-7">
-            <EditorialMast variant="chip">OPINIONS</EditorialMast>
-            <h2
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.6 }}
+            >
+              <EditorialMast variant="chip">OPINIONS</EditorialMast>
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20, filter: "blur(6px)" }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{
+                duration: 0.95,
+                ease: [0.22, 1, 0.36, 1],
+                delay: 0.1,
+              }}
               className="headline-md mt-6 text-balance"
               style={{ fontSize: "clamp(36px, 5vw, 64px)" }}
             >
               We made some{" "}
-              <span className="serif-italic text-grad-amber">choices</span>{" "}
+              <span className="serif-italic text-grad-amber amber-glow">
+                choices
+              </span>{" "}
               on your behalf.
-            </h2>
+            </motion.h2>
           </div>
-          <p
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.7, delay: 0.2 }}
             className="body-prose col-span-12 md:col-span-5 self-end mt-4 md:mt-0"
             style={{ maxWidth: "48ch" }}
           >
@@ -116,7 +138,7 @@ export function Choices() {
             VoiceFlow is built on a different bet: you should own the data,
             the cost, and the code. Four decisions, each made deliberately,
             each open to scrutiny.
-          </p>
+          </motion.p>
         </div>
 
         <div className="mt-14 grid gap-3 sm:grid-cols-2">
@@ -137,62 +159,74 @@ function PrincipleCard({
   index: number;
 }) {
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 16 }}
+    <motion.div
+      initial={{ opacity: 0, y: 28 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.55, delay: index * 0.08, ease: [0.22, 1, 0.36, 1] }}
-      className="card-raised group relative overflow-hidden p-7 sm:p-8"
+      transition={{
+        duration: 0.7,
+        delay: index * 0.1,
+        ease: [0.22, 1, 0.36, 1],
+      }}
     >
-      {/* Top hairline (only visible on hover) */}
-      <span
-        className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
-        aria-hidden
-      />
+      <SpotlightCard
+        tilt
+        className="card-raised gradient-border group relative overflow-hidden p-7 sm:p-8"
+      >
+        {/* Top hairline (only visible on hover) */}
+        <span
+          className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+          aria-hidden
+        />
 
-      {/* Hanging numeral */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/25 bg-amber-500/[0.08] text-amber-300 transition-colors duration-300 group-hover:bg-amber-500/[0.12] group-hover:border-amber-500/40">
-            {principle.icon}
-          </div>
-          <div>
-            <p className="mono text-[10.5px] tracking-[0.18em] uppercase text-amber-400/80">
-              {principle.label}
-            </p>
-            <p
-              className="serif-italic text-stone-700 leading-none"
-              style={{ fontSize: 24 }}
+        {/* Hanging numeral */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <motion.div
+              whileHover={{ rotate: -6, scale: 1.06 }}
+              transition={{ type: "spring", stiffness: 320, damping: 18 }}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/25 bg-amber-500/[0.08] text-amber-300 transition-colors duration-300 group-hover:bg-amber-500/[0.12] group-hover:border-amber-500/40"
             >
-              №{principle.n}
-            </p>
+              {principle.icon}
+            </motion.div>
+            <div>
+              <p className="mono text-[10.5px] tracking-[0.18em] uppercase text-amber-400/80">
+                {principle.label}
+              </p>
+              <p
+                className="serif-italic leading-none transition-colors duration-500 text-stone-700 group-hover:text-amber-500/40"
+                style={{ fontSize: 24 }}
+              >
+                №{principle.n}
+              </p>
+            </div>
           </div>
+
+          <span className="mono inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-[10.5px] tracking-wider text-stone-400">
+            <span className="h-1 w-1 rounded-full bg-emerald-400/70" />
+            {principle.proof}
+          </span>
         </div>
 
-        <span className="mono inline-flex items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-[10.5px] tracking-wider text-stone-400">
-          <span className="h-1 w-1 rounded-full bg-emerald-400/70" />
-          {principle.proof}
-        </span>
-      </div>
+        <h3
+          className="mt-7 text-balance font-bold tracking-tight"
+          style={{
+            fontSize: "clamp(22px, 2.6vw, 28px)",
+            lineHeight: 1.15,
+            letterSpacing: "-0.022em",
+            color: "var(--color-stone-100)",
+          }}
+        >
+          {principle.title}
+        </h3>
 
-      <h3
-        className="mt-7 text-balance font-bold tracking-tight"
-        style={{
-          fontSize: "clamp(22px, 2.6vw, 28px)",
-          lineHeight: 1.15,
-          letterSpacing: "-0.022em",
-          color: "var(--color-stone-100)",
-        }}
-      >
-        {principle.title}
-      </h3>
-
-      <p
-        className="mt-4 text-[14.5px] leading-relaxed text-stone-400"
-        style={{ maxWidth: "58ch" }}
-      >
-        {principle.body}
-      </p>
-    </motion.article>
+        <p
+          className="mt-4 text-[14.5px] leading-relaxed text-stone-400"
+          style={{ maxWidth: "58ch" }}
+        >
+          {principle.body}
+        </p>
+      </SpotlightCard>
+    </motion.div>
   );
 }

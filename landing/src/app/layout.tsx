@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import { ScrollProgress } from "@/components/ScrollProgress";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -54,7 +55,7 @@ export default function RootLayout({
         />
         <div
           aria-hidden
-          className="pointer-events-none fixed top-[-280px] left-1/2 -translate-x-1/2 h-[680px] w-[1100px] rounded-full bg-amber-500/[0.06] blur-[160px]"
+          className="pointer-events-none fixed top-[-280px] left-1/2 -translate-x-1/2 h-[680px] w-[1100px] rounded-full bg-amber-500/[0.06] blur-[160px] animate-breathe"
         />
         <div
           aria-hidden
@@ -65,7 +66,21 @@ export default function RootLayout({
           className="pointer-events-none fixed bottom-[-200px] left-[-12%] h-[460px] w-[520px] rounded-full bg-amber-700/[0.045] blur-[140px] animate-drift"
           style={{ animationDelay: "-6s" }}
         />
+        {/* Slow rotating conic — barely visible, adds life to the void */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed top-[-40vh] left-1/2 -translate-x-1/2 h-[140vh] w-[140vh] opacity-[0.05] animate-slow-spin"
+          style={{
+            background:
+              "conic-gradient(from 0deg, transparent 0deg, rgba(245,158,11,0.6) 90deg, transparent 180deg, rgba(251,146,60,0.4) 270deg, transparent 360deg)",
+            maskImage:
+              "radial-gradient(ellipse at center, black 0%, transparent 60%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse at center, black 0%, transparent 60%)",
+          }}
+        />
 
+        <ScrollProgress />
         <div className="relative z-10">{children}</div>
       </body>
     </html>
