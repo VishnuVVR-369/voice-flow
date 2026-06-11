@@ -52,6 +52,9 @@ body {
 
 html {
   scroll-behavior: smooth;
+  /* clip (not hidden): kills sideways scroll from decorative bloom/pulse
+     elements without creating a scroll container that would break sticky */
+  overflow-x: clip;
 }
 
 /* Selection — amber wash on dark */

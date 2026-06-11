@@ -2,23 +2,21 @@
 
 import { motion, useScroll, useTransform } from "motion/react";
 import { useRef } from "react";
-import { Diff } from "./Diff";
 import { Magnetic } from "./Magnetic";
+import { OverlayMockup } from "./OverlayMockup";
 import { SpotlightCard } from "./SpotlightCard";
 import { DOWNLOAD_URL, REPOSITORY_URL } from "@/lib/download";
-
-const TRUST_CONTEXTS = ["Slack", "Linear", "GitHub", "Mail", "Cursor", "Notion"];
 
 const STATS = [
   {
     value: "240ms",
     label: "First-token latency",
-    note: "Whisper-large-v3 on Groq",
+    note: "Whisper large-v3, streamed",
   },
   {
-    value: "~$0.001",
-    label: "Per dictation",
-    note: "You pay Groq directly",
+    value: "3×",
+    label: "Faster than typing",
+    note: "~150 wpm spoken vs ~45 typed",
   },
   {
     value: "100%",
@@ -65,7 +63,7 @@ export function Hero() {
           >
             <span className="eyebrow-chip shine">
               <span className="eyebrow-chip__dot" />
-              Voice → text · for macOS · v0.1.0
+              Voice → text · for macOS
             </span>
           </motion.div>
 
@@ -163,58 +161,29 @@ export function Hero() {
             transition={{ duration: 0.6, delay: 1.15 }}
             className="mt-5 text-[12px] text-stone-600"
           >
-            MIT licensed · Bring your own Groq key · macOS 13+
+            MIT licensed · Open source · macOS 13+
           </motion.p>
 
-          {/* Compatibility chips — staggered cascade */}
+          {/* The entire product UI — one floating pill */}
           <motion.div
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: {},
-              show: {
-                transition: {
-                  staggerChildren: 0.06,
-                  delayChildren: 1.25,
-                },
-              },
-            }}
-            className="mt-8 flex flex-wrap items-center justify-center gap-2.5"
+            initial={{ opacity: 0, y: 18, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1], delay: 1.25 }}
+            className="mt-14 flex justify-center"
           >
-            <motion.span
-              variants={{
-                hidden: { opacity: 0 },
-                show: { opacity: 1 },
-              }}
-              className="mast text-stone-500"
-            >
-              Works in
-            </motion.span>
-            {TRUST_CONTEXTS.map((ctx, i) => (
-              <motion.span
-                key={ctx}
-                variants={{
-                  hidden: { opacity: 0, y: 10, filter: "blur(6px)" },
-                  show: { opacity: 1, y: 0, filter: "blur(0px)" },
-                }}
-                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                whileHover={{ y: -3, scale: 1.04 }}
-                className="cursor-default rounded-full border border-white/[0.06] bg-white/[0.025] px-3 py-1 text-[11.5px] text-stone-300 backdrop-blur-md transition-colors hover:border-amber-500/40 hover:text-amber-200 hover:bg-amber-500/[0.06]"
-                style={{
-                  animation: `float-y 6s ease-in-out infinite`,
-                  animationDelay: `${-i * 0.7}s`,
-                }}
-              >
-                {ctx}
-              </motion.span>
-            ))}
+            <div className="relative animate-float">
+              <OverlayMockup
+                state="recording"
+                caption="This is the whole interface."
+              />
+            </div>
           </motion.div>
         </div>
 
         {/* Stats — three tilt-spotlight metric cards */}
         <motion.div
           style={{ y: metricsY, opacity: metricsOpacity }}
-          className="mt-14 grid gap-3 sm:grid-cols-3"
+          className="mt-16 grid gap-3 sm:grid-cols-3"
         >
           {STATS.map((s, i) => (
             <motion.div
@@ -224,7 +193,7 @@ export function Hero() {
               transition={{
                 duration: 0.75,
                 ease: [0.22, 1, 0.36, 1],
-                delay: 1.4 + i * 0.1,
+                delay: 1.45 + i * 0.1,
               }}
             >
               <SpotlightCard
@@ -250,16 +219,6 @@ export function Hero() {
           ))}
         </motion.div>
       </div>
-
-      {/* Hero spotlight: the live morph diff — scale-fade as it enters */}
-      <motion.div
-        initial={{ opacity: 0, y: 40, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 1.05 }}
-        className="mt-16 sm:mt-20"
-      >
-        <Diff />
-      </motion.div>
     </section>
   );
 }

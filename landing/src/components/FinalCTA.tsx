@@ -81,15 +81,19 @@ export function FinalCTA() {
                 </span>
               </motion.div>
 
-              <h2
+              {/* whileInView lives on the (unclipped) h2 — the masked spans
+                  inherit it via variants, since a fully clipped element never
+                  intersects for IntersectionObserver. */}
+              <motion.h2
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true }}
                 className="headline mt-7 text-balance"
                 style={{ fontSize: "clamp(44px, 7vw, 96px)" }}
               >
                 <span className="reveal-mask block">
                   <motion.span
-                    initial={{ y: "110%" }}
-                    whileInView={{ y: "0%" }}
-                    viewport={{ once: true }}
+                    variants={{ hidden: { y: "110%" }, show: { y: "0%" } }}
                     transition={{
                       duration: 0.95,
                       ease: [0.22, 1, 0.36, 1],
@@ -102,9 +106,7 @@ export function FinalCTA() {
                 </span>
                 <span className="reveal-mask block">
                   <motion.span
-                    initial={{ y: "110%" }}
-                    whileInView={{ y: "0%" }}
-                    viewport={{ once: true }}
+                    variants={{ hidden: { y: "110%" }, show: { y: "0%" } }}
                     transition={{
                       duration: 0.95,
                       ease: [0.22, 1, 0.36, 1],
@@ -115,7 +117,7 @@ export function FinalCTA() {
                     Start talking.
                   </motion.span>
                 </span>
-              </h2>
+              </motion.h2>
 
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
@@ -128,9 +130,8 @@ export function FinalCTA() {
                   maxWidth: "52ch",
                 }}
               >
-                Download VoiceFlow for macOS. Bring a Groq API key. Setup
-                takes about a minute. After that, you stop noticing the
-                keyboard.
+                Download VoiceFlow for macOS. Setup takes about a minute.
+                After that, you stop noticing the keyboard.
               </motion.p>
 
               <motion.div
@@ -185,8 +186,6 @@ export function FinalCTA() {
                 Open source
                 <span className="text-stone-700 mx-2.5">·</span>
                 macOS 13+
-                <span className="text-stone-700 mx-2.5">·</span>
-                v0.1.0
               </motion.p>
             </div>
 

@@ -29,11 +29,11 @@ const PRINCIPLES = [
   },
   {
     n: "02",
-    label: "BRING YOUR OWN KEY",
-    title: "You pay Groq directly. We pay nothing.",
+    label: "NO ACCOUNTS",
+    title: "No sign-up. No telemetry. No waiting room.",
     body:
-      "VoiceFlow uses your Groq API key for transcription and polish. No middleman, no markup, no per-minute pricing. Cost-per-dictation is typically a fraction of a cent — and the bill arrives in your inbox, not ours.",
-    proof: "≈ $0.001 per dictation",
+      "Download the app, grant microphone and accessibility permissions, and start dictating. There's no login wall, no usage analytics, no growth funnel. The only network request VoiceFlow ever makes is the transcription itself.",
+    proof: "Zero sign-ups",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -44,8 +44,8 @@ const PRINCIPLES = [
         strokeLinejoin="round"
         className="h-5 w-5"
       >
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-        <path d="m3.27 6.96 8.73 5.05 8.73-5.05M12 22.08V12" />
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="m9 12 2 2 4-4" />
       </svg>
     ),
   },
@@ -135,9 +135,9 @@ export function Choices() {
             style={{ maxWidth: "48ch" }}
           >
             Most voice-to-text tools optimise for the company shipping them.
-            VoiceFlow is built on a different bet: you should own the data,
-            the cost, and the code. Four decisions, each made deliberately,
-            each open to scrutiny.
+            VoiceFlow is built on a different bet: you should own the data
+            and the code. Four decisions, each made deliberately, each open
+            to scrutiny.
           </motion.p>
         </div>
 

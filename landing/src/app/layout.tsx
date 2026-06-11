@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "VoiceFlow — Speak. We'll write it properly.",
     description:
-      "Voice-to-text for macOS with built-in AI polish. Local. Open source. BYO Groq key.",
+      "Voice-to-text for macOS with built-in AI polish. Works in every app. Local. Open source.",
     type: "website",
   },
 };

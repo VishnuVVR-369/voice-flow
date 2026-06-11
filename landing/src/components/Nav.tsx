@@ -7,7 +7,8 @@ import { Magnetic } from "./Magnetic";
 import { DOWNLOAD_URL, REPOSITORY_URL } from "@/lib/download";
 
 const LINKS = [
-  { label: "How it works", href: "#demo", id: "demo" },
+  { label: "Works everywhere", href: "#everywhere", id: "everywhere" },
+  { label: "How it works", href: "#how", id: "how" },
   { label: "Principles", href: "#choices", id: "choices" },
   { label: "Source", href: REPOSITORY_URL, external: true, id: "source" },
 ] as const;
@@ -27,7 +28,7 @@ export function Nav() {
 
   // Track which section is in view to drive the active indicator
   useEffect(() => {
-    const sections = ["demo", "choices"]
+    const sections = ["everywhere", "how", "choices"]
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => !!el);
     if (!sections.length) return;

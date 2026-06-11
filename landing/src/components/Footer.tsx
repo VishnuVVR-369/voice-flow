@@ -35,7 +35,7 @@ export function Footer() {
           <div className="flex flex-col gap-3">
             <Logo />
             <span className="mono text-[11px] tracking-[0.16em] uppercase text-stone-600">
-              v0.1.0 · macOS 13+ · Apple silicon
+              macOS 13+ · Apple silicon
             </span>
           </div>
 
