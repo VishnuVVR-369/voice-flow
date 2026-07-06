@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import HotkeyEditor from '../components/HotkeyEditor';
 import { useAppSettings } from '../hooks/useAppSettings';
-import type { AskPasteBehavior, SessionMode } from '../../shared/types';
+import type { AskPasteBehavior, ReadinessSnapshot, SessionMode } from '../../shared/types';
 
 interface AudioDevice {
   deviceId: string;
   label: string;
 }
+
+type CheckState = 'idle' | 'checking' | 'ready' | 'failed';
 
 const SettingsPage: React.FC = () => {
   const [devices, setDevices] = useState<AudioDevice[]>([]);
@@ -19,6 +21,11 @@ const SettingsPage: React.FC = () => {
   const [transcriptionLanguage, setTranscriptionLanguage] = useState('en');
   const [defaultMode, setDefaultMode] = useState<SessionMode>('dictation');
   const [askPasteBehavior, setAskPasteBehavior] = useState<AskPasteBehavior>('replace-selection');
+  const [readiness, setReadiness] = useState<ReadinessSnapshot | null>(null);
+  const [apiKeyCheck, setApiKeyCheck] = useState<CheckState>('idle');
+  const [micCheck, setMicCheck] = useState<CheckState>('idle');
+  const [pasteCheck, setPasteCheck] = useState<CheckState>('idle');
+  const [readinessMessage, setReadinessMessage] = useState<string | null>(null);
   const settings = useAppSettings();
   const apiKeyRef = useRef('');
   const committedApiKeyRef = useRef('');
@@ -35,6 +42,16 @@ const SettingsPage: React.FC = () => {
       setDevices(audioInputs);
     } catch (err) {
       console.error('[Settings] Failed to enumerate devices:', err);
+    }
+  };
+
+  const refreshReadiness = async () => {
+    try {
+      const snapshot = await window.electronAPI.readinessGet();
+      setReadiness(snapshot);
+    } catch (err) {
+      console.error('[Settings] Failed to load readiness:', err);
+      setReadinessMessage('Could not load readiness checks.');
     }
   };
 
@@ -73,6 +90,7 @@ const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     refreshDevices();
+    refreshReadiness();
   }, []);
 
   useEffect(() => {
@@ -150,6 +168,105 @@ const SettingsPage: React.FC = () => {
     return result;
   };
 
+  const handleValidateApiKey = async () => {
+    commitApiKey();
+    setApiKeyCheck('checking');
+    setReadinessMessage(null);
+    const result = await window.electronAPI.readinessValidateApiKey();
+    setApiKeyCheck(result.success ? 'ready' : 'failed');
+    setReadinessMessage(result.success ? 'Groq API key validated.' : result.error || 'API key validation failed.');
+    await refreshReadiness();
+  };
+
+  const handleRequestAccessibility = async () => {
+    const snapshot = await window.electronAPI.readinessRequestAccessibility();
+    setReadiness(snapshot);
+    setReadinessMessage(snapshot.accessibilityTrusted
+      ? 'Accessibility access is enabled.'
+      : 'Enable VoiceFlow in macOS Accessibility, then run the check again.');
+  };
+
+  const handleTestMicrophone = async () => {
+    setMicCheck('checking');
+    setReadinessMessage(null);
+    try {
+      const constraints: MediaStreamConstraints = {
+        audio: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true,
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      stream.getTracks().forEach((track) => track.stop());
+      setMicCheck('ready');
+      setReadinessMessage('Microphone capture is ready.');
+      await refreshDevices();
+    } catch (err) {
+      console.error('[Settings] Microphone test failed:', err);
+      setMicCheck('failed');
+      setReadinessMessage('Microphone test failed. Check macOS microphone permission and device selection.');
+    }
+  };
+
+  const handleTestPaste = async () => {
+    setPasteCheck('checking');
+    setReadinessMessage(null);
+    try {
+      const result = await window.electronAPI.readinessTestClipboard();
+      if (result.success) {
+        setPasteCheck('ready');
+        setReadinessMessage('Clipboard access is available. Run a real dictation to test app paste automation.');
+      } else {
+        setPasteCheck('failed');
+        setReadinessMessage(result.error || 'Clipboard check failed.');
+      }
+    } catch {
+      setPasteCheck('failed');
+      setReadinessMessage('Clipboard check failed.');
+    }
+  };
+
+  const handleShortcutInfo = () => {
+    setReadinessMessage('Edit shortcuts below if either one conflicts with another macOS shortcut.');
+  };
+
+  const readinessItems = [
+    {
+      label: 'Groq API',
+      state: apiKeyCheck === 'ready' || readiness?.apiKeyConfigured ? 'ready' : apiKeyCheck,
+      detail: readiness?.apiKeyConfigured ? 'Key saved locally' : 'Add a key to unlock transcription',
+      action: 'Validate',
+      onClick: handleValidateApiKey,
+    },
+    {
+      label: 'Microphone',
+      state: micCheck,
+      detail: devices.length > 0 ? `${devices.length} input${devices.length === 1 ? '' : 's'} detected` : 'Run a capture test',
+      action: 'Test mic',
+      onClick: handleTestMicrophone,
+    },
+    {
+      label: 'Shortcuts',
+      state: readiness?.hotkey && readiness?.holdToTranscribeHotkey && readiness.hotkey !== readiness.holdToTranscribeHotkey ? 'ready' : 'failed',
+      detail: readiness ? `${readiness.hotkey} / ${readiness.holdToTranscribeHotkey}` : 'Loading shortcut state',
+      action: 'Review',
+      onClick: handleShortcutInfo,
+    },
+    {
+      label: 'Accessibility',
+      state: readiness?.accessibilityTrusted ? 'ready' : 'failed',
+      detail: readiness?.accessibilityTrusted ? 'Shortcuts and paste can control macOS' : 'Required for global shortcuts and paste',
+      action: readiness?.accessibilityTrusted ? 'Recheck' : 'Open',
+      onClick: handleRequestAccessibility,
+    },
+    {
+      label: 'Paste recovery',
+      state: pasteCheck,
+      detail: readiness?.accessibilityTrusted ? 'Recovery actions are available' : 'Clipboard recovery works even before paste access',
+      action: 'Check',
+      onClick: handleTestPaste,
+    },
+  ] as const;
+
+  const readyCount = readinessItems.filter((item) => item.state === 'ready').length;
+
   return (
     <div className="page-stack">
       <header className="page-header">
@@ -158,6 +275,40 @@ const SettingsPage: React.FC = () => {
           <h1 className="page-title">Control room</h1>
         </div>
       </header>
+
+      <section className="settings-block readiness-panel">
+        <div className="settings-row">
+          <div>
+            <h2 className="settings-title">First Run Readiness</h2>
+            <p className="settings-copy">
+              Verify the pieces VoiceFlow needs before relying on background dictation.
+            </p>
+          </div>
+          <div className="readiness-score">{readyCount}/{readinessItems.length} ready</div>
+        </div>
+
+        <div className="readiness-grid">
+          {readinessItems.map((item) => (
+            <div key={item.label} className={`readiness-card readiness-card--${item.state}`}>
+              <div className="readiness-card-head">
+                <span className="readiness-dot" />
+                <span className="readiness-label">{item.label}</span>
+              </div>
+              <p className="readiness-detail">{item.detail}</p>
+              <button
+                type="button"
+                className="action-btn action-btn-soft readiness-action"
+                onClick={() => void item.onClick()}
+                disabled={item.state === 'checking'}
+              >
+                {item.state === 'checking' ? 'Checking...' : item.action}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {readinessMessage && <div className="history-status-banner">{readinessMessage}</div>}
+      </section>
 
       <section className="settings-block">
         <div className="settings-row">

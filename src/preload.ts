@@ -51,6 +51,14 @@ const electronAPI: ElectronAPI = {
   setSettings: (settings) => {
     ipcRenderer.send(IPC_CHANNELS.SETTINGS_SET, settings);
   },
+  readinessGet: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.READINESS_GET),
+  readinessValidateApiKey: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.READINESS_VALIDATE_API_KEY),
+  readinessTestClipboard: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.READINESS_TEST_CLIPBOARD),
+  readinessRequestAccessibility: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.READINESS_REQUEST_ACCESSIBILITY),
   updateHotkey: (kind: 'toggle' | 'hold', hotkey: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.HOTKEY_SET, { kind, hotkey });
   },

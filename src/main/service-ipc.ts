@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, systemPreferences } from 'electron';
 import * as path from 'path';
 import { IPC_CHANNELS } from '../shared/constants';
 import { HistoryService } from './history-service';
@@ -6,7 +6,9 @@ import { DictionaryService } from './dictionary-service';
 import * as fs from 'fs';
 import { TextInjector } from './text-injector';
 import { getConfig } from './config-store';
-import type { CursorContext, HistoryListRequest } from '../shared/types';
+import type { CursorContext, HistoryListRequest, ReadinessSnapshot } from '../shared/types';
+
+const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
 
 const historyService = new HistoryService();
 const dictionaryService = new DictionaryService();
@@ -52,7 +54,89 @@ function ensureExportExtension(filePath: string): string {
   return path.extname(filePath) ? filePath : `${filePath}.json`;
 }
 
+function isAccessibilityTrusted(): boolean {
+  if (process.platform !== 'darwin') {
+    return true;
+  }
+
+  return systemPreferences.isTrustedAccessibilityClient(false);
+}
+
+function buildReadinessSnapshot(): ReadinessSnapshot {
+  const config = getConfig();
+  return {
+    apiKeyConfigured: Boolean(config.groqApiKey.trim()),
+    accessibilityTrusted: isAccessibilityTrusted(),
+    historyDir: historyService.getHistoryDir(),
+    hotkey: config.hotkey,
+    holdToTranscribeHotkey: config.holdToTranscribeHotkey,
+    defaultMode: config.defaultMode,
+    askPasteBehavior: config.askPasteBehavior,
+  };
+}
+
 export function registerServiceIPC(textInjector: TextInjector): void {
+  // --- First-run readiness ---
+  safeHandle(IPC_CHANNELS.READINESS_GET, async () => {
+    return buildReadinessSnapshot();
+  });
+
+  safeHandle(IPC_CHANNELS.READINESS_REQUEST_ACCESSIBILITY, async () => {
+    if (process.platform === 'darwin') {
+      systemPreferences.isTrustedAccessibilityClient(true);
+    }
+    return buildReadinessSnapshot();
+  });
+
+  safeHandle(IPC_CHANNELS.READINESS_VALIDATE_API_KEY, async () => {
+    const apiKey = getConfig().groqApiKey.trim();
+    if (!apiKey) {
+      return { success: false, error: 'Add a Groq API key before validating.' };
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const response = await fetch(`${GROQ_BASE_URL}/models`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `Groq rejected the key (${response.status}).` };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error && error.name === 'AbortError'
+          ? 'Groq validation timed out.'
+          : 'Could not reach Groq to validate the key.',
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+  });
+
+  safeHandle(IPC_CHANNELS.READINESS_TEST_CLIPBOARD, async () => {
+    const previous = clipboard.readText();
+    const probe = `voiceflow-readiness-${Date.now()}`;
+
+    try {
+      clipboard.writeText(probe);
+      const ok = clipboard.readText() === probe;
+      clipboard.writeText(previous);
+      return ok
+        ? { success: true }
+        : { success: false, error: 'Clipboard write verification failed.' };
+    } catch {
+      clipboard.writeText(previous);
+      return { success: false, error: 'Clipboard access failed.' };
+    }
+  });
+
   // --- History ---
   safeHandle(IPC_CHANNELS.HISTORY_LIST, async (_event, req: HistoryListRequest) => {
     return historyService.list(req.page, req.pageSize, {

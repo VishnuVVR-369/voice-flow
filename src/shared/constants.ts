@@ -18,6 +18,10 @@ export const IPC_CHANNELS = {
   SETTINGS_GET: 'settings:get',
   SETTINGS_SET: 'settings:set',
   SETTINGS_UPDATED: 'settings:updated',
+  READINESS_GET: 'readiness:get',
+  READINESS_VALIDATE_API_KEY: 'readiness:validate-api-key',
+  READINESS_TEST_CLIPBOARD: 'readiness:test-clipboard',
+  READINESS_REQUEST_ACCESSIBILITY: 'readiness:request-accessibility',
   HOTKEY_SET: 'hotkey:set',
   SHORTCUT_EDITING: 'shortcut:editing',
 

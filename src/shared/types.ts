@@ -112,6 +112,21 @@ export interface TranscriptionStatsResult {
   totalDurationSeconds: number;
 }
 
+export interface ReadinessSnapshot {
+  apiKeyConfigured: boolean;
+  accessibilityTrusted: boolean;
+  historyDir: string;
+  hotkey: string;
+  holdToTranscribeHotkey: string;
+  defaultMode: SessionMode;
+  askPasteBehavior: AskPasteBehavior;
+}
+
+export interface ReadinessCheckResult {
+  success: boolean;
+  error?: string;
+}
+
 type Disposer = () => void;
 
 export interface ElectronAPI {
@@ -127,6 +142,10 @@ export interface ElectronAPI {
   cancelRecording: () => void;
   getSettings: () => Promise<AppSettings>;
   setSettings: (settings: Partial<AppSettings>) => void;
+  readinessGet: () => Promise<ReadinessSnapshot>;
+  readinessValidateApiKey: () => Promise<ReadinessCheckResult>;
+  readinessTestClipboard: () => Promise<ReadinessCheckResult>;
+  readinessRequestAccessibility: () => Promise<ReadinessSnapshot>;
   updateHotkey: (
     kind: 'toggle' | 'hold',
     hotkey: string,

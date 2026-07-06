@@ -1,7 +1,7 @@
 {
   "name": "VoiceFlow",
   "productName": "VoiceFlow",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Realtime voice-to-text engine for Mac with AI polish, local history, and instant paste",
   "main": ".vite/build/main.js",
   "private": true,
