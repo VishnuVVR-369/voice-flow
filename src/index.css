@@ -345,6 +345,45 @@ body {
   color: var(--overlay-danger);
 }
 
+.overlay-recovery-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.overlay-recovery-button {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--overlay-line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--overlay-ink);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.overlay-recovery-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--overlay-line-strong);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.overlay-recovery-button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.overlay-recovery-button--primary {
+  border-color: rgba(215, 163, 95, 0.38);
+  background: var(--overlay-accent-soft);
+  color: #ffe5bd;
+}
+
 .overlay-preview--error {
   border-color: rgba(242, 143, 155, 0.22);
 }

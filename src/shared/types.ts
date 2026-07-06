@@ -101,6 +101,11 @@ export interface HistoryExportResult {
   error?: string;
 }
 
+export interface PasteRecoveryResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface TranscriptionStatsResult {
   totalWords: number;
   totalCount: number;
@@ -117,6 +122,8 @@ export interface ElectronAPI {
   onSettingsUpdated: (callback: (settings: AppSettings) => void) => Disposer;
   onTranscriptionResult: (callback: (text: string) => void) => Disposer;
   onTranscriptionError: (callback: (error: string) => void) => Disposer;
+  pasteCopyLast: () => Promise<PasteRecoveryResult>;
+  pasteRetryLast: () => Promise<PasteRecoveryResult>;
   cancelRecording: () => void;
   getSettings: () => Promise<AppSettings>;
   setSettings: (settings: Partial<AppSettings>) => void;

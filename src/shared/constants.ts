@@ -8,6 +8,8 @@ export const IPC_CHANNELS = {
   // Transcription
   TRANSCRIPTION_RESULT: 'transcription:result',
   TRANSCRIPTION_ERROR: 'transcription:error',
+  PASTE_COPY_LAST: 'paste:copy-last',
+  PASTE_RETRY_LAST: 'paste:retry-last',
 
   // Status
   STATUS_UPDATE: 'status:update',

@@ -38,6 +38,10 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.TRANSCRIPTION_ERROR, handler);
     return () => { ipcRenderer.removeListener(IPC_CHANNELS.TRANSCRIPTION_ERROR, handler); };
   },
+  pasteCopyLast: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.PASTE_COPY_LAST),
+  pasteRetryLast: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.PASTE_RETRY_LAST),
   cancelRecording: () => {
     ipcRenderer.send(IPC_CHANNELS.RECORDING_CANCELLED);
   },

@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron';
+import { clipboard, ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants';
 import { TranscriptionService } from './transcription-service';
 import { RealtimeTranscriptionService, type RealtimeTranscriptionResult } from './realtime-transcription-service';
@@ -26,6 +26,11 @@ export class IPCHandler {
   private pendingContext: Promise<CursorContext | null> = Promise.resolve(null);
   private activeSessionMode: SessionMode = 'dictation';
   private activeAskPasteBehavior: AskPasteBehavior = 'replace-selection';
+  private lastPastePayload: {
+    text: string;
+    context: CursorContext | null;
+    options: { pasteBehavior?: AskPasteBehavior };
+  } | null = null;
   private sessionManager: RealtimeSessionManager | null = null;
   private shortcutManager: ShortcutManager | null = null;
   private idleStatusTimer: NodeJS.Timeout | null = null;
@@ -82,7 +87,7 @@ export class IPCHandler {
 
     if (!this.overlayWindow) return;
 
-    if (status === 'recording') {
+    if (status === 'recording' || status === 'done' || status === 'error') {
       showOverlayWindow(this.overlayWindow);
       this.overlayWindow.moveTop();
       this.overlayWindow.setIgnoreMouseEvents(false);
@@ -144,6 +149,8 @@ export class IPCHandler {
     ipcMain.removeHandler(IPC_CHANNELS.SETTINGS_GET);
     ipcMain.removeHandler(IPC_CHANNELS.HOTKEY_SET);
     ipcMain.removeHandler(IPC_CHANNELS.SHORTCUT_EDITING);
+    ipcMain.removeHandler(IPC_CHANNELS.PASTE_COPY_LAST);
+    ipcMain.removeHandler(IPC_CHANNELS.PASTE_RETRY_LAST);
 
     // Handle cancel from renderer (X button clicked)
     ipcMain.on(IPC_CHANNELS.RECORDING_CANCELLED, () => {
@@ -157,6 +164,40 @@ export class IPCHandler {
     // Handle settings
     ipcMain.handle(IPC_CHANNELS.SETTINGS_GET, () => {
       return getConfig();
+    });
+
+    ipcMain.handle(IPC_CHANNELS.PASTE_COPY_LAST, async () => {
+      if (!this.lastPastePayload?.text) {
+        return { success: false, error: 'No transcript is available to copy.' };
+      }
+
+      clipboard.writeText(this.lastPastePayload.text);
+      return { success: true };
+    });
+
+    ipcMain.handle(IPC_CHANNELS.PASTE_RETRY_LAST, async () => {
+      if (!this.lastPastePayload?.text) {
+        return { success: false, error: 'No transcript is available to paste.' };
+      }
+
+      const result = await this.textInjector.inject(
+        this.lastPastePayload.text,
+        this.lastPastePayload.context,
+        this.lastPastePayload.options,
+      );
+
+      if (result.status !== 'success') {
+        const error = result.reason || 'Paste retry failed.';
+        this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_ERROR, error);
+        this.sendStatus('error');
+        this.scheduleIdleStatus(8000);
+        return { success: false, error };
+      }
+
+      this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_RESULT, this.lastPastePayload.text);
+      this.sendStatus('done');
+      this.scheduleIdleStatus(2500);
+      return { success: true };
     });
 
     ipcMain.on(IPC_CHANNELS.SETTINGS_SET, (_event, settings) => {
@@ -445,11 +486,14 @@ export class IPCHandler {
 
         // Inject text + save to history
         const injectStart = Date.now();
-        await this.textInjector.inject(
-          finalText,
+        const pasteOptions = sessionMode === 'ask' ? { pasteBehavior: askPasteBehavior } : {};
+        this.lastPastePayload = {
+          text: finalText,
           context,
-          sessionMode === 'ask' ? { pasteBehavior: askPasteBehavior } : {},
-        );
+          options: pasteOptions,
+        };
+
+        const injectResult = await this.textInjector.inject(finalText, context, pasteOptions);
         const injectMs = Date.now() - injectStart;
 
         const durationSeconds = this.recordingStartedAt
@@ -475,10 +519,16 @@ export class IPCHandler {
         }).catch((err) => console.error('[History] Failed to save:', err));
 
         this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_RESULT, finalText);
-        this.sendStatus('done');
+        if (injectResult.status !== 'success') {
+          const pasteError = injectResult.reason || 'Paste failed. The transcript is ready for recovery.';
+          this.overlayWindow?.webContents.send(IPC_CHANNELS.TRANSCRIPTION_ERROR, pasteError);
+          this.sendStatus('error');
+          this.scheduleIdleStatus(8000);
+        } else {
+          this.sendStatus('done');
+          this.scheduleIdleStatus(2500);
+        }
         console.log(`[realtime pipeline: ${Date.now() - stopInitiatedAt}ms | flush: ${flushMs}ms | mode=${sessionMode} | transform: ${transformMs}ms | inject: ${injectMs}ms]`);
-
-        this.scheduleIdleStatus(1500);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Transcription failed';
         console.error('[IPC] Realtime stop error:', message);

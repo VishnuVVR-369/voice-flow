@@ -31,6 +31,8 @@ export const Overlay: React.FC = () => {
   const [volumeWarning, setVolumeWarning] = useState<'none' | 'silence'>('none');
   const [liveTranscriptLines, setLiveTranscriptLines] = useState<string[]>([]);
   const [finalTranscript, setFinalTranscript] = useState<string | null>(null);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
+  const [recoveryBusy, setRecoveryBusy] = useState<'copy' | 'retry' | null>(null);
   const [sessionMode, setSessionMode] = useState<SessionMode>('dictation');
   const analyserRef = useRef<AnalyserNode | null>(null);
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,6 +64,8 @@ export const Overlay: React.FC = () => {
   const clearOverlayContent = useCallback(() => {
     setLiveTranscriptLines([]);
     setFinalTranscript(null);
+    setRecoveryMessage(null);
+    setRecoveryBusy(null);
   }, []);
 
   const requestOverlayResize = useCallback((nextStatus: AppStatus) => {
@@ -302,6 +306,7 @@ export const Overlay: React.FC = () => {
       }),
       window.electronAPI.onTranscriptionResult((text) => {
         setFinalTranscript(text);
+        setRecoveryMessage(null);
       }),
       window.electronAPI.onTranscriptionError((errorMsg) => {
         soundEffects.error();
@@ -320,7 +325,7 @@ export const Overlay: React.FC = () => {
   }, [clearOverlayContent]);
 
   const liveTranscript = liveTranscriptLines.join(' ').trim();
-  const previewText = status === 'done'
+  const previewText = status === 'done' || status === 'error'
     ? finalTranscript?.trim() || liveTranscript
     : liveTranscript;
   const hasPreviewText = previewText.length > 0;
@@ -364,6 +369,33 @@ export const Overlay: React.FC = () => {
     status === 'recording' ? 'overlay-preview--scrollable' : 'overlay-preview--static',
     status === 'error' ? 'overlay-preview--error' : '',
   ].filter(Boolean).join(' ');
+  const canRecoverPaste = (status === 'done' || status === 'error') && Boolean(finalTranscript?.trim());
+
+  const handleCopyLast = async () => {
+    setRecoveryBusy('copy');
+    setRecoveryMessage(null);
+    try {
+      const result = await window.electronAPI.pasteCopyLast();
+      setRecoveryMessage(result.success ? 'Copied transcript to clipboard.' : result.error || 'Copy failed.');
+    } catch {
+      setRecoveryMessage('Copy failed.');
+    } finally {
+      setRecoveryBusy(null);
+    }
+  };
+
+  const handleRetryPaste = async () => {
+    setRecoveryBusy('retry');
+    setRecoveryMessage(null);
+    try {
+      const result = await window.electronAPI.pasteRetryLast();
+      setRecoveryMessage(result.success ? 'Paste retry succeeded.' : result.error || 'Paste retry failed.');
+    } catch {
+      setRecoveryMessage('Paste retry failed.');
+    } finally {
+      setRecoveryBusy(null);
+    }
+  };
 
   return (
     <div className="overlay-container">
@@ -437,6 +469,31 @@ export const Overlay: React.FC = () => {
                   {hasErrorDetail && (
                     <div className="overlay-preview-note overlay-preview-note--error">
                       {error}
+                    </div>
+                  )}
+                  {canRecoverPaste && (
+                    <div className="overlay-recovery-bar">
+                      <button
+                        type="button"
+                        className="overlay-recovery-button"
+                        onClick={handleCopyLast}
+                        disabled={recoveryBusy !== null}
+                      >
+                        {recoveryBusy === 'copy' ? 'Copying' : 'Copy'}
+                      </button>
+                      <button
+                        type="button"
+                        className="overlay-recovery-button overlay-recovery-button--primary"
+                        onClick={handleRetryPaste}
+                        disabled={recoveryBusy !== null}
+                      >
+                        {recoveryBusy === 'retry' ? 'Retrying' : 'Retry Paste'}
+                      </button>
+                    </div>
+                  )}
+                  {recoveryMessage && (
+                    <div className="overlay-preview-note">
+                      {recoveryMessage}
                     </div>
                   )}
                   <div ref={transcriptEndRef} />
