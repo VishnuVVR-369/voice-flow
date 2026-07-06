@@ -10,6 +10,7 @@ const LINKS = [
   { label: "Works everywhere", href: "#everywhere", id: "everywhere" },
   { label: "How it works", href: "#how", id: "how" },
   { label: "Principles", href: "#choices", id: "choices" },
+  { label: "Docs", href: "/docs", id: "docs" },
   { label: "Source", href: REPOSITORY_URL, external: true, id: "source" },
 ] as const;
 

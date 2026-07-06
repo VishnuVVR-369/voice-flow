@@ -5,6 +5,7 @@ import { Logo } from "./Logo";
 import { REPOSITORY_URL } from "@/lib/download";
 
 const NAV_LINKS = [
+  { label: "Docs", href: "/docs", external: false },
   { label: "GitHub", href: REPOSITORY_URL, external: true },
   { label: "License (MIT)", href: "/license", external: false },
   {

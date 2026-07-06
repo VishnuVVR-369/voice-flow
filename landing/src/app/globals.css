@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* The repo's root .gitignore ignores `docs/`, so Tailwind's automatic source
+   detection skips the docs UI (src/components/docs, src/lib/docs). Register
+   those paths explicitly so their utility classes are generated. */
+@source "../components/docs";
+@source "../lib/docs";
+
 :root {
   /* ── Surface palette ──────────────────────────────────── */
   --color-ink: #070707;
