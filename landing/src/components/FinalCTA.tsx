@@ -67,7 +67,7 @@ export function FinalCTA() {
             transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
           />
 
-          <div className="relative grid grid-cols-12 gap-x-8 gap-y-10">
+          <div className="relative grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:gap-x-8">
             <div className="col-span-12 lg:col-span-7">
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -201,7 +201,7 @@ export function FinalCTA() {
               }}
               className="col-span-12 lg:col-span-5 lg:col-start-8 flex items-center justify-center"
             >
-              <div className="relative animate-float">
+              <div className="relative animate-float scale-[0.82] origin-center sm:scale-100">
                 <OverlayMockup state="recording" />
               </div>
             </motion.div>

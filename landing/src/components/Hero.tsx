@@ -54,28 +54,15 @@ export function Hero() {
     >
       <div className="container-x relative">
         <div className="mx-auto max-w-3xl text-center">
-          {/* Eyebrow chip */}
-          <motion.div
-            initial={{ opacity: 0, y: 6, filter: "blur(6px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.7 }}
-            className="flex justify-center"
-          >
-            <span className="eyebrow-chip shine">
-              <span className="eyebrow-chip__dot" />
-              Voice → text · for macOS
-            </span>
-          </motion.div>
-
           {/* Headline — word-staggered rise from a mask */}
           <h1
-            className="headline mt-7 text-balance"
+            className="headline text-balance"
             style={{ fontSize: "clamp(48px, 8.5vw, 112px)" }}
           >
             {HEAD_WORDS.map((w, i) => (
               <span
                 key={i}
-                className="reveal-mask"
+                className={`reveal-mask ${w.serif ? "reveal-mask--serif" : ""}`}
                 style={{ marginRight: w.tight ? 0 : "0.22em" }}
               >
                 <motion.span

@@ -108,3 +108,5 @@ resources/binaries/*
 
 ToDo.txt
 docs/
+.agents/
+.claude/
