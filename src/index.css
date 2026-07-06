@@ -95,8 +95,8 @@ body {
 }
 
 .overlay-shell--active {
-  width: 380px;
-  max-height: 260px;
+  width: 430px;
+  max-height: 340px;
   border-radius: 22px;
   border: 1px solid var(--overlay-line);
   background:
@@ -276,6 +276,32 @@ body {
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
     var(--overlay-surface-soft);
   box-shadow: var(--overlay-shadow-soft);
+}
+
+.overlay-context-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.overlay-context-chip {
+  max-width: 100%;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--overlay-ink-muted);
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .overlay-preview--scrollable {

@@ -75,6 +75,13 @@ export class IPCHandler {
     this.activeSessionMode = config.defaultMode;
     this.activeAskPasteBehavior = config.askPasteBehavior;
     this.pendingContext = captureCursorContext();
+    this.pendingContext
+      .then((context) => {
+        this.overlayWindow?.webContents.send(IPC_CHANNELS.SESSION_CONTEXT, context);
+      })
+      .catch(() => {
+        this.overlayWindow?.webContents.send(IPC_CHANNELS.SESSION_CONTEXT, null);
+      });
   }
 
   setStatus(status: AppStatus): void {

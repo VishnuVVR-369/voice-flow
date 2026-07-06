@@ -4,7 +4,7 @@ import { PcmAudioRecorder } from '../services/pcm-audio-recorder';
 import { soundEffects } from '../services/sound-effects';
 import { WaveformAnimation } from './WaveformAnimation';
 import { OVERLAY_IDLE_HEIGHT, OVERLAY_IDLE_WIDTH } from '../../shared/constants';
-import type { AppSettings, AppStatus, SessionMode } from '../../shared/types';
+import type { AppSettings, AppStatus, CursorContext, SessionMode } from '../../shared/types';
 
 const pcmRecorder = new PcmAudioRecorder();
 
@@ -16,15 +16,21 @@ function rlog(msg: string) {
 const MAX_RECORDING_MS = 10 * 60 * 1000;
 const HARD_KILL_MS = 15 * 60 * 1000;
 
-const ACTIVE_WIDTH = 380;
-const ACTIVE_MAX_HEIGHT = 260;
+const ACTIVE_WIDTH = 430;
+const ACTIVE_MAX_HEIGHT = 340;
 const HEADER_HEIGHT = 44;
-const BODY_MAX_HEIGHT_RECORDING = 160;
-const BODY_MAX_HEIGHT_POST_RECORDING = 104;
+const BODY_MAX_HEIGHT_RECORDING = 210;
+const BODY_MAX_HEIGHT_POST_RECORDING = 138;
 const IDLE_WINDOW_HEIGHT = OVERLAY_IDLE_HEIGHT + 24;
 const WINDOW_HEIGHT_PADDING = 24;
 const WAVEFORM_ACTIVE_COLOR = '#f4efe6';
 const WAVEFORM_IDLE_COLOR = 'rgba(244, 239, 230, 0.34)';
+
+function formatRecordingDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
 
 export const Overlay: React.FC = () => {
   const { status, setStatus, error, setError } = useAppStore();
@@ -34,6 +40,8 @@ export const Overlay: React.FC = () => {
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const [recoveryBusy, setRecoveryBusy] = useState<'copy' | 'retry' | null>(null);
   const [sessionMode, setSessionMode] = useState<SessionMode>('dictation');
+  const [sessionContext, setSessionContext] = useState<CursorContext | null>(null);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hardKillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,6 +74,8 @@ export const Overlay: React.FC = () => {
     setFinalTranscript(null);
     setRecoveryMessage(null);
     setRecoveryBusy(null);
+    setSessionContext(null);
+    setRecordingSeconds(0);
   }, []);
 
   const requestOverlayResize = useCallback((nextStatus: AppStatus) => {
@@ -266,6 +276,20 @@ export const Overlay: React.FC = () => {
   }, [status]);
 
   useEffect(() => {
+    if (status !== 'recording') {
+      return undefined;
+    }
+
+    const startedAt = Date.now();
+    setRecordingSeconds(0);
+    const interval = window.setInterval(() => {
+      setRecordingSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 250);
+
+    return () => window.clearInterval(interval);
+  }, [status]);
+
+  useEffect(() => {
     const syncMode = (settings: AppSettings) => {
       if (statusRef.current === 'idle') {
         setSessionMode(settings.defaultMode);
@@ -304,6 +328,9 @@ export const Overlay: React.FC = () => {
           clearOverlayContent();
         }
       }),
+      window.electronAPI.onSessionContext((context) => {
+        setSessionContext(context);
+      }),
       window.electronAPI.onTranscriptionResult((text) => {
         setFinalTranscript(text);
         setRecoveryMessage(null);
@@ -330,7 +357,7 @@ export const Overlay: React.FC = () => {
     : liveTranscript;
   const hasPreviewText = previewText.length > 0;
   const hasErrorDetail = status === 'error' && Boolean(error);
-  const showPreview = status !== 'idle' && (hasPreviewText || hasErrorDetail);
+  const showPreview = status === 'recording' || (status !== 'idle' && (hasPreviewText || hasErrorDetail));
   const modeLabel = sessionMode === 'ask' ? 'Ask' : 'Dictation';
   const recordingText = volumeWarning === 'silence'
     ? 'No input detected'
@@ -358,6 +385,22 @@ export const Overlay: React.FC = () => {
   const previewBodyMaxHeight = status === 'recording'
     ? BODY_MAX_HEIGHT_RECORDING
     : BODY_MAX_HEIGHT_POST_RECORDING;
+  const selectedTextLength = sessionContext?.selectedText.trim().length ?? 0;
+  const targetLabel = sessionContext?.appName
+    ? [sessionContext.appName, sessionContext.windowTitle].filter(Boolean).join(' / ')
+    : 'Target app pending';
+  const recordingLimitLabel = `${formatRecordingDuration(recordingSeconds)} / 10:00`;
+  const contextChips = status === 'recording'
+    ? [
+      recordingLimitLabel,
+      targetLabel,
+      sessionMode === 'ask'
+        ? selectedTextLength > 0
+          ? `${selectedTextLength} selected chars`
+          : 'No selection detected'
+        : 'Esc cancels',
+    ]
+    : [];
   const overlayShellClassName = [
     'overlay-shell',
     status === 'idle' ? 'overlay-shell--idle' : 'overlay-shell--active',
@@ -459,6 +502,15 @@ export const Overlay: React.FC = () => {
                   className={previewClassName}
                   style={{ maxHeight: `${previewBodyMaxHeight}px` }}
                 >
+                  {contextChips.length > 0 && (
+                    <div className="overlay-context-strip">
+                      {contextChips.map((chip) => (
+                        <span key={chip} className="overlay-context-chip">
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="overlay-preview-label">{previewLabel}</div>
                   {hasPreviewText && (
                     <div className="overlay-preview-copy">

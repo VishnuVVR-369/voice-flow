@@ -134,6 +134,7 @@ export interface ElectronAPI {
   onRecordingStop: (callback: () => void) => Disposer;
   onRecordingCancel: (callback: () => void) => Disposer;
   onStatusUpdate: (callback: (status: AppStatus) => void) => Disposer;
+  onSessionContext: (callback: (context: CursorContext | null) => void) => Disposer;
   onSettingsUpdated: (callback: (settings: AppSettings) => void) => Disposer;
   onTranscriptionResult: (callback: (text: string) => void) => Disposer;
   onTranscriptionError: (callback: (error: string) => void) => Disposer;

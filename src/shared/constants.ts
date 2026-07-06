@@ -13,6 +13,7 @@ export const IPC_CHANNELS = {
 
   // Status
   STATUS_UPDATE: 'status:update',
+  SESSION_CONTEXT: 'session:context',
 
   // Settings
   SETTINGS_GET: 'settings:get',

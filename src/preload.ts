@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from './shared/constants';
-import type { AppSettings, AppStatus, ElectronAPI, HistoryListRequest } from './shared/types';
+import type { AppSettings, AppStatus, CursorContext, ElectronAPI, HistoryListRequest } from './shared/types';
 
 const electronAPI: ElectronAPI = {
   onRecordingStart: (callback: () => void) => {
@@ -22,6 +22,11 @@ const electronAPI: ElectronAPI = {
     const handler = (_event: Electron.IpcRendererEvent, status: AppStatus) => callback(status);
     ipcRenderer.on(IPC_CHANNELS.STATUS_UPDATE, handler);
     return () => { ipcRenderer.removeListener(IPC_CHANNELS.STATUS_UPDATE, handler); };
+  },
+  onSessionContext: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, context: CursorContext | null) => callback(context);
+    ipcRenderer.on(IPC_CHANNELS.SESSION_CONTEXT, handler);
+    return () => { ipcRenderer.removeListener(IPC_CHANNELS.SESSION_CONTEXT, handler); };
   },
   onSettingsUpdated: (callback) => {
     const handler = (_event: Electron.IpcRendererEvent, settings: AppSettings) => callback(settings);
