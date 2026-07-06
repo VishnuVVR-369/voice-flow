@@ -1,0 +1,44 @@
+import type { ReactNode } from "react";
+import type { DocsIcon } from "@/components/docs/icons";
+
+export type DocsSection = {
+  id: string;
+  title: string;
+  body: ReactNode;
+};
+
+export type DocsQuickFact = {
+  label: string;
+  value: string;
+};
+
+export type DocsHighlight = {
+  title: string;
+  description: string;
+  href?: string;
+};
+
+export type DocsPage = {
+  slug: string;
+  group: string;
+  title: string;
+  description: string;
+  eyebrow: string;
+  sections: DocsSection[];
+  quickFacts?: DocsQuickFact[];
+  highlights?: DocsHighlight[];
+};
+
+export type DocsGroup = {
+  title: string;
+  icon: DocsIcon;
+  pages: DocsPage[];
+};
+
+export type DocsSearchItem = {
+  title: string;
+  description: string;
+  group: string;
+  href: string;
+  searchText: string;
+};

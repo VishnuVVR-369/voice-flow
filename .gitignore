@@ -107,6 +107,8 @@ resources/binaries/*
 !resources/binaries/.gitkeep
 
 ToDo.txt
-docs/
+# Anchor to the repo root so this only ignores /stt/docs (demo transcripts),
+# not nested app directories like landing/src/**/docs used by the docs site.
+/docs/
 .agents/
 .claude/
