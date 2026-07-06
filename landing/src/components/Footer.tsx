@@ -5,10 +5,14 @@ import { Logo } from "./Logo";
 import { REPOSITORY_URL } from "@/lib/download";
 
 const NAV_LINKS = [
-  { label: "GitHub", href: REPOSITORY_URL },
-  { label: "License (MIT)", href: `${REPOSITORY_URL}/blob/main/LICENSE` },
-  { label: "Releases", href: `${REPOSITORY_URL}/releases` },
-  { label: "Privacy", href: `${REPOSITORY_URL}#privacy` },
+  { label: "GitHub", href: REPOSITORY_URL, external: true },
+  { label: "License (MIT)", href: "/license", external: false },
+  {
+    label: "Releases",
+    href: `${REPOSITORY_URL}/releases/tag/voiceflow@0.1.0`,
+    external: true,
+  },
+  { label: "Privacy", href: "/privacy", external: false },
 ];
 
 export function Footer() {
@@ -47,8 +51,9 @@ export function Footer() {
               <motion.a
                 key={link.label}
                 href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
+                {...(link.external
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
                 initial={{ opacity: 0, y: 6 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
