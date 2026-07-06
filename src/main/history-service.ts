@@ -7,6 +7,8 @@ import type {
   HistoryDeleteResult,
   HistoryDiagnostics,
   HistoryListResult,
+  HistoryUpdateRequest,
+  HistoryUpdateResult,
   TranscriptionRecord,
   TranscriptionStatsResult,
 } from '../shared/types';
@@ -46,6 +48,7 @@ export class HistoryService {
       command_text: record.command_text,
       source_text: record.source_text,
       final_text: record.final_text,
+      is_favorite: record.is_favorite,
       app_context: record.app_context,
       detected_language: record.detected_language,
       app_name: record.app_name,
@@ -73,6 +76,7 @@ export class HistoryService {
       command_text: record.command_text,
       source_text: record.source_text,
       final_text: record.final_text,
+      is_favorite: false,
       app_context: record.app_context,
       detected_language: record.detected_language,
       app_name: record.app_name,
@@ -86,7 +90,13 @@ export class HistoryService {
   async list(
     page: number,
     pageSize: number,
-    options: { searchQuery?: string; mode?: HistoryFilterMode } = {},
+    options: {
+      searchQuery?: string;
+      mode?: HistoryFilterMode;
+      favoriteOnly?: boolean;
+      appName?: string;
+      dateRange?: 'all' | 'today' | 'week';
+    } = {},
   ): Promise<HistoryListResult> {
     const result = localHistory.list(page, pageSize, options);
     return {
@@ -104,6 +114,17 @@ export class HistoryService {
     const success = localHistory.delete(id);
     return success
       ? { success: true }
+      : { success: false, error: 'History record not found.' };
+  }
+
+  async update(request: HistoryUpdateRequest): Promise<HistoryUpdateResult> {
+    const record = localHistory.update(request.id, {
+      final_text: request.final_text,
+      is_favorite: request.is_favorite,
+    });
+
+    return record
+      ? { success: true, record: this.toTranscriptionRecord(record) }
       : { success: false, error: 'History record not found.' };
   }
 
@@ -131,6 +152,7 @@ export class HistoryService {
       app_name: record.app_name,
       window_title: record.window_title,
       final_text: record.final_text,
+      is_favorite: record.is_favorite,
       original_text: record.original_text,
       optimized_text: record.optimized_text,
       command_text: record.command_text,

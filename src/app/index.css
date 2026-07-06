@@ -677,6 +677,10 @@
     gap: 6px;
   }
 
+  .history-search-shell-compact {
+    min-width: 160px;
+  }
+
   .history-search-label {
     font-size: 10px;
     letter-spacing: 0.16em;
@@ -899,6 +903,31 @@
     flex-wrap: wrap;
   }
 
+  .history-pin-button {
+    margin-left: auto;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(94, 82, 66, 0.22);
+    background: rgba(255, 250, 243, 0.72);
+    color: #574c40;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+  }
+
+  .history-pin-button:hover {
+    transform: translateY(-1px);
+    border-color: rgba(64, 104, 126, 0.42);
+  }
+
+  .history-pin-button-active {
+    border-color: rgba(180, 116, 33, 0.36);
+    background: rgba(235, 203, 154, 0.32);
+    color: #754f18;
+  }
+
   .history-context-strip {
     display: flex;
     align-items: center;
@@ -989,6 +1018,21 @@
     color: var(--ink-500);
   }
 
+  .history-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .history-panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   .history-code-block {
     margin: 10px 0 0;
     padding: 14px;
@@ -1001,6 +1045,27 @@
     white-space: pre-wrap;
     word-break: break-word;
     font-family: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  .history-edit-area {
+    min-height: 180px;
+    width: 100%;
+    margin-top: 10px;
+    resize: vertical;
+    border-radius: 14px;
+    border: 1px solid rgba(88, 75, 58, 0.18);
+    background: rgba(255, 252, 247, 0.94);
+    color: #2f2820;
+    padding: 12px;
+    font: inherit;
+    line-height: 1.55;
+    outline: none;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+
+  .history-edit-area:focus {
+    border-color: rgba(58, 104, 126, 0.44);
+    box-shadow: 0 0 0 4px rgba(89, 128, 145, 0.12);
   }
 
   .history-drawer-backdrop {

@@ -17,6 +17,7 @@ export interface LocalHistoryRecord {
   command_text: string | null;
   source_text: string | null;
   final_text: string;
+  is_favorite: boolean;
   app_context: string | null;
   detected_language: string | null;
   app_name: string | null;
@@ -34,6 +35,9 @@ type ParsedHistoryRecord = Partial<LocalHistoryRecord> & Pick<LocalHistoryRecord
 interface HistoryListOptions {
   searchQuery?: string;
   mode?: HistoryFilterMode;
+  favoriteOnly?: boolean;
+  appName?: string;
+  dateRange?: 'all' | 'today' | 'week';
 }
 
 export class LocalHistoryService {
@@ -130,6 +134,7 @@ export class LocalHistoryService {
       command_text: record.command_text ?? null,
       source_text: record.source_text ?? parsedContext?.selectedText ?? null,
       final_text: finalText,
+      is_favorite: record.is_favorite ?? false,
       app_context: record.app_context ?? null,
       detected_language: record.detected_language ?? record.language ?? null,
       app_name: record.app_name ?? parsedContext?.appName ?? null,
@@ -173,6 +178,26 @@ export class LocalHistoryService {
   private matchesFilters(record: LocalHistoryRecord, options: HistoryListOptions): boolean {
     if (options.mode && options.mode !== 'all' && record.mode !== options.mode) {
       return false;
+    }
+
+    if (options.favoriteOnly && !record.is_favorite) {
+      return false;
+    }
+
+    const appName = options.appName?.trim().toLowerCase();
+    if (appName && !(record.app_name ?? '').toLowerCase().includes(appName)) {
+      return false;
+    }
+
+    if (options.dateRange && options.dateRange !== 'all') {
+      const createdAt = new Date(record.created_at).getTime();
+      const start = options.dateRange === 'today'
+        ? new Date().setHours(0, 0, 0, 0)
+        : Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+      if (createdAt < start) {
+        return false;
+      }
     }
 
     const query = options.searchQuery?.trim().toLowerCase();
@@ -220,6 +245,32 @@ export class LocalHistoryService {
 
   getById(id: string): LocalHistoryRecord | null {
     return this.getAllRecords().find((record) => record.id === id) ?? null;
+  }
+
+  update(
+    id: string,
+    updates: Partial<Pick<LocalHistoryRecord, 'final_text' | 'is_favorite'>>,
+  ): LocalHistoryRecord | null {
+    const existing = this.getById(id);
+    if (!existing) {
+      return null;
+    }
+
+    const next = this.normalizeRecord({
+      ...existing,
+      ...updates,
+      word_count: updates.final_text !== undefined
+        ? LocalHistoryService.countWords(updates.final_text)
+        : existing.word_count,
+    });
+    const filePath = path.join(this.historyDir, `${id}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(next, null, 2), 'utf-8');
+
+    if (this.cachedRecords) {
+      this.cachedRecords = this.cachedRecords.map((record) => record.id === id ? next : record);
+    }
+
+    return next;
   }
 
   /** Compute aggregate stats from all local history files */

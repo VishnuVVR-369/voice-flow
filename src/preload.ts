@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from './shared/constants';
-import type { AppSettings, AppStatus, CursorContext, ElectronAPI, HistoryListRequest } from './shared/types';
+import type { AppSettings, AppStatus, CursorContext, ElectronAPI, HistoryListRequest, HistoryUpdateRequest } from './shared/types';
 
 const electronAPI: ElectronAPI = {
   onRecordingStart: (callback: () => void) => {
@@ -84,6 +84,8 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.invoke(IPC_CHANNELS.HISTORY_LIST, request),
   historyGet: (id: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.HISTORY_GET, { id }),
+  historyUpdate: (request: HistoryUpdateRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.HISTORY_UPDATE, request),
   historyDelete: (id: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.HISTORY_DELETE, { id }),
   historyReinject: (id: string) =>

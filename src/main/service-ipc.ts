@@ -6,7 +6,7 @@ import { DictionaryService } from './dictionary-service';
 import * as fs from 'fs';
 import { TextInjector } from './text-injector';
 import { getConfig } from './config-store';
-import type { CursorContext, HistoryListRequest, ReadinessSnapshot } from '../shared/types';
+import type { CursorContext, HistoryListRequest, HistoryUpdateRequest, ReadinessSnapshot } from '../shared/types';
 
 const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
 
@@ -142,11 +142,22 @@ export function registerServiceIPC(textInjector: TextInjector): void {
     return historyService.list(req.page, req.pageSize, {
       searchQuery: req.searchQuery,
       mode: req.mode,
+      favoriteOnly: req.favoriteOnly,
+      appName: req.appName,
+      dateRange: req.dateRange,
     });
   });
 
   safeHandle(IPC_CHANNELS.HISTORY_GET, async (_event, req: { id: string }) => {
     return historyService.getById(req.id);
+  });
+
+  safeHandle(IPC_CHANNELS.HISTORY_UPDATE, async (_event, req: HistoryUpdateRequest) => {
+    const result = await historyService.update(req);
+    if (result.success) {
+      broadcastHistoryUpdated();
+    }
+    return result;
   });
 
   safeHandle(IPC_CHANNELS.HISTORY_DELETE, async (_event, req: { id: string }) => {

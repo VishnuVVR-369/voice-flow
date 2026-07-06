@@ -45,6 +45,9 @@ export interface HistoryListRequest {
   pageSize: number;
   searchQuery?: string;
   mode?: HistoryFilterMode;
+  favoriteOnly?: boolean;
+  appName?: string;
+  dateRange?: 'all' | 'today' | 'week';
 }
 
 export interface HistoryDiagnosticsPass {
@@ -69,6 +72,7 @@ export interface TranscriptionRecord {
   command_text: string | null;
   source_text: string | null;
   final_text: string;
+  is_favorite: boolean;
   app_context: string | null;
   detected_language: string | null;
   app_name: string | null;
@@ -86,6 +90,18 @@ export interface HistoryListResult {
 
 export interface HistoryDeleteResult {
   success: boolean;
+  error?: string;
+}
+
+export interface HistoryUpdateRequest {
+  id: string;
+  final_text?: string;
+  is_favorite?: boolean;
+}
+
+export interface HistoryUpdateResult {
+  success: boolean;
+  record?: TranscriptionRecord;
   error?: string;
 }
 
@@ -171,6 +187,7 @@ export interface ElectronAPI {
   // History
   historyList: (request: HistoryListRequest) => Promise<HistoryListResult>;
   historyGet: (id: string) => Promise<TranscriptionRecord | null>;
+  historyUpdate: (request: HistoryUpdateRequest) => Promise<HistoryUpdateResult>;
   historyDelete: (id: string) => Promise<HistoryDeleteResult>;
   historyReinject: (id: string) => Promise<HistoryReinjectResult>;
   historyExportOne: (id: string) => Promise<HistoryExportResult>;

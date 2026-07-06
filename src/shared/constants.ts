@@ -29,6 +29,7 @@ export const IPC_CHANNELS = {
   // History (renderer -> main, invoke)
   HISTORY_LIST: 'history:list',
   HISTORY_GET: 'history:get',
+  HISTORY_UPDATE: 'history:update',
   HISTORY_DELETE: 'history:delete',
   HISTORY_REINJECT: 'history:reinject',
   HISTORY_EXPORT_ONE: 'history:export-one',

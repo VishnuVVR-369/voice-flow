@@ -2,6 +2,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } fr
 import type { HistoryListRequest, TranscriptionRecord } from '../../shared/types';
 
 type HistoryTab = 'all' | 'dictation' | 'ask';
+type HistoryDateRange = 'all' | 'today' | 'week';
 
 interface HistoryGroup {
   label: string;
@@ -12,6 +13,9 @@ const PAGE_SIZE = 50;
 
 const HistoryPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<HistoryTab>('all');
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [appFilter, setAppFilter] = useState('');
+  const [dateRange, setDateRange] = useState<HistoryDateRange>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [records, setRecords] = useState<TranscriptionRecord[]>([]);
@@ -22,7 +26,9 @@ const HistoryPage: React.FC = () => {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [draftFinalText, setDraftFinalText] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const deferredAppFilter = useDeferredValue(appFilter);
 
   const loadHistory = useCallback(async (page = 0, append = false) => {
     const request: HistoryListRequest = {
@@ -30,6 +36,9 @@ const HistoryPage: React.FC = () => {
       pageSize: PAGE_SIZE,
       searchQuery: deferredSearchQuery.trim() || undefined,
       mode: activeTab,
+      favoriteOnly,
+      appName: deferredAppFilter.trim() || undefined,
+      dateRange,
     };
 
     try {
@@ -46,7 +55,7 @@ const HistoryPage: React.FC = () => {
         setIsLoading(false);
       }
     }
-  }, [activeTab, deferredSearchQuery]);
+  }, [activeTab, dateRange, deferredAppFilter, deferredSearchQuery, favoriteOnly]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -96,6 +105,10 @@ const HistoryPage: React.FC = () => {
     };
   }, [statusMessage]);
 
+  useEffect(() => {
+    setDraftFinalText(detailRecord?.final_text ?? '');
+  }, [detailRecord]);
+
   const groupedRecords = useMemo(() => groupRecords(records), [records]);
   const hasMoreRecords = records.length < matchingTotal;
 
@@ -116,6 +129,53 @@ const HistoryPage: React.FC = () => {
     await runRecordAction(`copy:${record.id}`, async () => {
       await copyText(record.final_text);
       setStatusMessage('Copied final text to the clipboard.');
+    });
+  };
+
+  const handleToggleFavorite = async (record: TranscriptionRecord) => {
+    await runRecordAction(`favorite:${record.id}`, async () => {
+      const result = await window.electronAPI.historyUpdate({
+        id: record.id,
+        is_favorite: !record.is_favorite,
+      });
+      if (!result.success || !result.record) {
+        throw new Error(result.error || 'Failed to update pinned state.');
+      }
+
+      const updatedRecord = result.record;
+      setRecords((prev) => prev.map((item) => item.id === record.id ? updatedRecord : item));
+      if (detailRecord?.id === record.id) {
+        setDetailRecord(updatedRecord);
+      }
+      setStatusMessage(updatedRecord.is_favorite ? 'Pinned history record.' : 'Unpinned history record.');
+    });
+  };
+
+  const handleSaveFinalText = async () => {
+    if (!detailRecord) {
+      return;
+    }
+
+    await runRecordAction(`save:${detailRecord.id}`, async () => {
+      const result = await window.electronAPI.historyUpdate({
+        id: detailRecord.id,
+        final_text: draftFinalText,
+      });
+      if (!result.success || !result.record) {
+        throw new Error(result.error || 'Failed to save final text.');
+      }
+
+      const updatedRecord = result.record;
+      setDetailRecord(updatedRecord);
+      setRecords((prev) => prev.map((item) => item.id === updatedRecord.id ? updatedRecord : item));
+      setStatusMessage('Saved edited final text.');
+    });
+  };
+
+  const handleCopyDraft = async () => {
+    await runRecordAction('copy-draft', async () => {
+      await copyText(draftFinalText);
+      setStatusMessage('Copied edited final text to the clipboard.');
     });
   };
 
@@ -268,6 +328,38 @@ const HistoryPage: React.FC = () => {
               className="history-search-input"
             />
           </label>
+
+          <label className="history-search-shell history-search-shell-compact">
+            <span className="history-search-label">App</span>
+            <input
+              type="search"
+              value={appFilter}
+              onChange={(event) => setAppFilter(event.target.value)}
+              placeholder="Filter by app"
+              className="history-search-input"
+            />
+          </label>
+
+          <label className="history-search-shell history-search-shell-compact">
+            <span className="history-search-label">Date</span>
+            <select
+              value={dateRange}
+              onChange={(event) => setDateRange(event.target.value as HistoryDateRange)}
+              className="history-search-input"
+            >
+              <option value="all">Any time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 days</option>
+            </select>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => setFavoriteOnly((value) => !value)}
+            className={`segmented-btn ${favoriteOnly ? 'segmented-btn-active' : ''}`}
+          >
+            Pinned
+          </button>
         </div>
 
         {statusMessage && <div className="history-status-banner">{statusMessage}</div>}
@@ -298,6 +390,9 @@ const HistoryPage: React.FC = () => {
                           <div className="history-entry-time">
                             {createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </div>
+                          {record.is_favorite && (
+                            <span className="history-context-pill">Pinned</span>
+                          )}
                           <span className={`history-mode-pill history-mode-pill--${record.mode}`}>
                             {record.mode === 'ask' ? 'Ask' : 'Dictation'}
                           </span>
@@ -326,6 +421,9 @@ const HistoryPage: React.FC = () => {
                               <button type="button" onClick={() => void handleViewDetails(record)} className="history-action-item">
                                 View Details
                               </button>
+                              <button type="button" onClick={() => void handleToggleFavorite(record)} className="history-action-item">
+                                {record.is_favorite ? 'Unpin' : 'Pin'}
+                              </button>
                               <button type="button" onClick={() => void handleDelete(record)} className="history-action-item history-action-item-danger">
                                 Delete
                               </button>
@@ -349,6 +447,14 @@ const HistoryPage: React.FC = () => {
                         {record.original_text !== record.final_text && (
                           <span className="history-transform-note">Polished output available</span>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => void handleToggleFavorite(record)}
+                          className={`history-pin-button ${record.is_favorite ? 'history-pin-button-active' : ''}`}
+                          title={record.is_favorite ? 'Unpin' : 'Pin'}
+                        >
+                          {record.is_favorite ? 'Pinned' : 'Pin'}
+                        </button>
                       </div>
                     </article>
                   );
@@ -403,6 +509,13 @@ const HistoryPage: React.FC = () => {
                     <button type="button" onClick={() => void handleExportOne(detailRecord)} className="action-btn">
                       Export
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleToggleFavorite(detailRecord)}
+                      className="action-btn"
+                    >
+                      {detailRecord.is_favorite ? 'Unpin' : 'Pin'}
+                    </button>
                   </>
                 )}
                 <button type="button" onClick={() => setDetailRecord(null)} className="action-btn action-btn-soft">
@@ -447,8 +560,27 @@ const HistoryPage: React.FC = () => {
                 )}
 
                 <section className="history-panel">
-                  <div className="history-panel-label">Final text</div>
-                  <pre className="history-code-block">{detailRecord.final_text}</pre>
+                  <div className="history-panel-head">
+                    <div className="history-panel-label">Final text workspace</div>
+                    <div className="history-panel-actions">
+                      <button type="button" onClick={() => void handleCopyDraft()} className="action-btn action-btn-soft">
+                        Copy Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleSaveFinalText()}
+                        className="action-btn"
+                        disabled={draftFinalText === detailRecord.final_text || busyAction === `save:${detailRecord.id}`}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    value={draftFinalText}
+                    onChange={(event) => setDraftFinalText(event.target.value)}
+                    className="history-edit-area"
+                  />
                 </section>
 
                 <section className="history-panel">
