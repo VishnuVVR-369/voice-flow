@@ -1,0 +1,75 @@
+name: Release macOS DMG
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Buildx macOS DMG
+    runs-on: macos-latest
+    env:
+      TARGET_ARCH: arm64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        run: |
+          rustup default stable
+          rustup target add aarch64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build distributables
+        run: |
+          npm run build:native:key-listener
+          npx electron-forge make --arch="$TARGET_ARCH"
+
+      - name: Prepare release asset
+        run: |
+          mkdir -p release
+          DMG_PATH="$(find out/make -type f -name '*.dmg' -print -quit)"
+          if [ -z "$DMG_PATH" ]; then
+            echo "No DMG file found under out/make"
+            exit 1
+          fi
+          cp "$DMG_PATH" release/VoiceFlow.dmg
+          shasum -a 256 release/VoiceFlow.dmg > release/VoiceFlow.dmg.sha256
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_NAME="manual-$(date +%Y%m%d%H%M%S)"
+            git tag "$TAG_NAME"
+            git push origin "$TAG_NAME"
+          fi
+
+          RELEASE_NOTES="Unsigned macOS DMG for temporary distribution. macOS may show Gatekeeper warnings until VoiceFlow is signed and notarized."
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" release/VoiceFlow.dmg release/VoiceFlow.dmg.sha256 --clobber
+          else
+            gh release create "$TAG_NAME" release/VoiceFlow.dmg release/VoiceFlow.dmg.sha256 \
+              --title "$TAG_NAME" \
+              --notes "$RELEASE_NOTES"
+          fi
