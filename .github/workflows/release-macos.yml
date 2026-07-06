@@ -59,9 +59,8 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG_NAME="manual-$(date +%Y%m%d%H%M%S)"
-            git tag "$TAG_NAME"
-            git push origin "$TAG_NAME"
+            VERSION="$(node -p "require('./package.json').version")"
+            TAG_NAME="voiceflow@$VERSION"
           fi
 
           RELEASE_NOTES="Unsigned macOS DMG for temporary distribution. macOS may show Gatekeeper warnings until VoiceFlow is signed and notarized."
@@ -69,6 +68,10 @@ jobs:
           if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             gh release upload "$TAG_NAME" release/VoiceFlow.dmg release/VoiceFlow.dmg.sha256 --clobber
           else
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              git tag "$TAG_NAME"
+              git push origin "$TAG_NAME"
+            fi
             gh release create "$TAG_NAME" release/VoiceFlow.dmg release/VoiceFlow.dmg.sha256 \
               --title "$TAG_NAME" \
               --notes "$RELEASE_NOTES"
