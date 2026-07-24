@@ -553,10 +553,13 @@ html {
   padding-bottom: 0.06em;
 }
 
-/* Serif italic words have deeper descenders (p, y) than the sans headline
-   font — extra bottom room keeps them from being clipped by the mask. */
+/* Serif italic words have deeper descenders and left-side overhangs than the
+   sans headline font. Keep both clear of the reveal mask without changing the
+   word's visual alignment. */
 .reveal-mask--serif {
   padding-bottom: 0.22em;
+  padding-left: 0.1em;
+  margin-left: -0.1em;
 }
 
 /* Shimmering shine sweep — used for buttons / chips */
